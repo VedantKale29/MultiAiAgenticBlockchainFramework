@@ -46,8 +46,8 @@ from rf_model import RFModel
 from if_model import IFModel
 
 # ── NEW: Multi-Agent imports ───────────────────────────────────
-from agents.coordinator_agent import CoordinatorAgent
-from agents.base_agent import AgentMessage
+from  coordinator_agent import CoordinatorAgent
+from  base_agent import AgentMessage
 
 
 # ──────────────────────────────────────────────────────────────
@@ -157,8 +157,8 @@ def main():
     logging.info("\n--- PHASE 3: Building Multi-Agent System ---")
     logging.info("Creating agents:")
     logging.info("  [1] PerceptionAgent  — validates state vector z")
-    logging.info("  [2] RFAgent          — supervised detector → p_RF(z)")
-    logging.info("  [3] IFAgent          — anomaly detector → s_IF(z)")
+    logging.info("  [2] RFAgent          — supervised detector  ->> p_RF(z)")
+    logging.info("  [3] IFAgent          — anomaly detector  ->> s_IF(z)")
     logging.info("  [4] FusionAgent      — S(z) = w*p_RF + (1-w)*s_IF")
     logging.info("  [5] ActionAgent      — CLEAR / ALERT / AUTO-BLOCK")
     logging.info("  [6] MonitoringAgent  — metrics + batch log")
@@ -208,13 +208,13 @@ def main():
     history_df = pd.DataFrame(history)
     history_path = "runs/run_multiagent/batch_history.csv"
     history_df.to_csv(history_path, index=False)
-    logging.info(f"Batch history saved → {history_path}")
+    logging.info(f"Batch history saved  ->> {history_path}")
 
     # Save final agent state
     state_path = "runs/run_multiagent/final_state.json"
     with open(state_path, "w") as f:
         json.dump(final_state, f, indent=4)
-    logging.info(f"Final state saved → {state_path}")
+    logging.info(f"Final state saved  ->> {state_path}")
 
     # ──────────────────────────────────────────────────────────
     # PHASE 6: PRINT SUMMARY

@@ -1,0 +1,5 @@
+[2026-03-11 11:47:03,422: INFO: main_multiagent]: ============================================================
+[2026-03-11 11:47:03,441: INFO: main_multiagent]: MULTI-AGENT BLOCKCHAIN FRAUD DETECTION
+[2026-03-11 11:47:03,444: INFO: main_multiagent]: Paper: Agentic AI Framework with Hybrid Classifiers
+[2026-03-11 11:47:03,447: INFO: main_multiagent]: ============================================================
+[2026-03-11 11:47:03,450: ERROR: main_multiagent]: Dataset not found: transaction_dataset.csv

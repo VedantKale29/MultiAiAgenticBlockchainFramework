@@ -1,0 +1,212 @@
+[2026-03-11 11:53:53,357: INFO: main_multiagent]: ============================================================
+[2026-03-11 11:53:53,357: INFO: main_multiagent]: MULTI-AGENT BLOCKCHAIN FRAUD DETECTION
+[2026-03-11 11:53:53,357: INFO: main_multiagent]: Paper: Agentic AI Framework with Hybrid Classifiers
+[2026-03-11 11:53:53,357: INFO: main_multiagent]: ============================================================
+[2026-03-11 11:53:53,357: INFO: main_multiagent]: 
+--- PHASE 1: Data Loading ---
+[2026-03-11 11:53:53,357: INFO: data_loader]: Loading dataset from transaction_dataset.csv
+[2026-03-11 11:53:53,566: INFO: data_loader]: Original shape: (9841, 51)
+[2026-03-11 11:53:53,585: INFO: data_loader]: Filling 22635 NaNs with 0
+[2026-03-11 11:53:53,651: INFO: data_loader]: Final cleaned shape: (9841, 19)
+[2026-03-11 11:53:53,651: INFO: data_loader]: Final feature columns: ['Avg min between sent tnx', 'Avg min between received tnx', 'Time Diff between first and last (Mins)', 'Sent tnx', 'Received Tnx', 'Number of Created Contracts', 'Total ERC20 tnxs', 'min value received', 'max value received', 'avg val received', 'min val sent', 'max val sent', 'avg val sent', 'ERC20 min val sent', 'ERC20 max val sent', 'ERC20 avg val sent', 'Unique Received From Addresses', 'Unique Sent To Addresses']
+[2026-03-11 11:53:53,651: INFO: data_loader]: Train/test split with seed=42
+[2026-03-11 11:53:53,657: INFO: data_loader]: Feature columns (18): ['Avg min between sent tnx', 'Avg min between received tnx', 'Time Diff between first and last (Mins)', 'Sent tnx', 'Received Tnx', 'Number of Created Contracts', 'Total ERC20 tnxs', 'min value received', 'max value received', 'avg val received', 'min val sent', 'max val sent', 'avg val sent', 'ERC20 min val sent', 'ERC20 max val sent', 'ERC20 avg val sent', 'Unique Received From Addresses', 'Unique Sent To Addresses']
+[2026-03-11 11:53:53,659: INFO: data_loader]: Overall fraud rate: 0.221421
+[2026-03-11 11:53:53,681: INFO: data_loader]: Train size=7380 fraud_rate=0.221409
+[2026-03-11 11:53:53,682: INFO: data_loader]: Test size=2461 fraud_rate=0.221455
+[2026-03-11 11:53:53,725: INFO: data_loader]: Feature normalization applied (StandardScaler)
+[2026-03-11 11:53:53,727: INFO: main_multiagent]: Features: ['Avg min between sent tnx', 'Avg min between received tnx', 'Time Diff between first and last (Mins)', 'Sent tnx', 'Received Tnx', 'Number of Created Contracts', 'Total ERC20 tnxs', 'min value received', 'max value received', 'avg val received', 'min val sent', 'max val sent', 'avg val sent', 'ERC20 min val sent', 'ERC20 max val sent', 'ERC20 avg val sent', 'Unique Received From Addresses', 'Unique Sent To Addresses']
+[2026-03-11 11:53:53,727: INFO: main_multiagent]: 
+--- PHASE 2: Training Models ---
+[2026-03-11 11:53:53,727: INFO: rf_model]: Initialized Random Forest (trees=250, class_weight=balanced, seed=42)
+[2026-03-11 11:53:53,727: INFO: rf_model]: Training Random Forest baseline...
+[2026-03-11 11:53:55,376: INFO: rf_model]: Samples=7380, features=18
+[2026-03-11 11:53:55,377: INFO: rf_model]: Random Forest training complete.
+[2026-03-11 11:53:55,379: INFO: main_multiagent]: RF trained in 1.65s
+[2026-03-11 11:53:55,380: INFO: if_model]: Normal samples=5746
+[2026-03-11 11:53:55,381: INFO: if_model]: Initialized Isolation Forest (trees=200, max_samples=2048, contamination=0.221409, seed=42)
+[2026-03-11 11:53:55,382: INFO: if_model]: Training Isolation Forest baseline...
+[2026-03-11 11:53:55,385: INFO: if_model]: Normal samples=5746
+[2026-03-11 11:53:56,397: INFO: if_model]: Isolation Forest training complete.
+[2026-03-11 11:53:56,397: INFO: main_multiagent]: IF trained in 1.02s
+[2026-03-11 11:53:56,397: INFO: main_multiagent]: 
+--- PHASE 3: Building Multi-Agent System ---
+[2026-03-11 11:53:56,397: INFO: main_multiagent]: Creating agents:
+[2026-03-11 11:53:56,401: INFO: main_multiagent]:   [1] PerceptionAgent  — validates state vector z
+[2026-03-11 11:53:56,401: INFO: main_multiagent]:   [2] RFAgent          — supervised detector  ->> p_RF(z)
+[2026-03-11 11:53:56,403: INFO: main_multiagent]:   [3] IFAgent          — anomaly detector  ->> s_IF(z)
+[2026-03-11 11:53:56,403: INFO: main_multiagent]:   [4] FusionAgent      — S(z) = w*p_RF + (1-w)*s_IF
+[2026-03-11 11:53:56,403: INFO: main_multiagent]:   [5] ActionAgent      — CLEAR / ALERT / AUTO-BLOCK
+[2026-03-11 11:53:56,403: INFO: main_multiagent]:   [6] MonitoringAgent  — metrics + batch log
+[2026-03-11 11:53:56,407: INFO: main_multiagent]:   [7] AdaptationAgent  — updates tau, tau_block, w
+[2026-03-11 11:53:56,408: INFO: main_multiagent]:   [8] CoordinatorAgent — orchestrates all the above
+[2026-03-11 11:53:56,409: INFO: base_agent]: [CoordinatorAgent] Initialized
+[2026-03-11 11:53:56,410: INFO: base_agent]: [PerceptionAgent] Initialized
+[2026-03-11 11:53:56,411: INFO: base_agent]: [RFAgent] Initialized
+[2026-03-11 11:53:56,412: INFO: base_agent]: [IFAgent] Initialized
+[2026-03-11 11:53:56,412: INFO: base_agent]: [FusionAgent] Initialized
+[2026-03-11 11:53:56,412: INFO: base_agent]: [ActionAgent] Initialized
+[2026-03-11 11:53:56,413: INFO: base_agent]: [MonitoringAgent] Initialized
+[2026-03-11 11:53:56,414: INFO: base_agent]: [AdaptationAgent] Initialized
+[2026-03-11 11:53:56,415: INFO: coordinator_agent]: [CoordinatorAgent] Initial agent state: {'w': 0.7, 'tau_alert': 0.487, 'tau_block': 0.587}
+[2026-03-11 11:53:56,416: INFO: main_multiagent]: 
+--- PHASE 4: Running Streaming Evaluation ---
+[2026-03-11 11:53:56,416: INFO: main_multiagent]: Seed=42 | Batches=~5 | Batch size=600
+[2026-03-11 11:53:56,417: INFO: base_agent]: [CoordinatorAgent] Received message from 'main'
+[2026-03-11 11:53:56,419: INFO: coordinator_agent]: [CoordinatorAgent] Starting streaming pipeline: 2461 samples | 5 batches | batch_size=600
+[2026-03-11 11:53:56,420: INFO: coordinator_agent]: 
+=======================================================
+[CoordinatorAgent] BATCH 1/5
+=======================================================
+[2026-03-11 11:53:56,420: INFO: base_agent]: [PerceptionAgent] Received message from 'CoordinatorAgent'
+[2026-03-11 11:53:56,423: INFO: perception_agent]: [PerceptionAgent] Batch 1 | size=600 | frauds_in_batch=135 | fraud_rate=0.225
+[2026-03-11 11:53:56,424: INFO: base_agent]: [PerceptionAgent] Done  ->> status=ok
+[2026-03-11 11:53:56,425: INFO: base_agent]: [RFAgent] Received message from 'PerceptionAgent'
+[2026-03-11 11:53:56,711: INFO: rf_agent]: [RFAgent] Batch 1 | p_RF: min=0.000 max=1.000 mean=0.216
+[2026-03-11 11:53:56,711: INFO: base_agent]: [RFAgent] Done  ->> status=ok
+[2026-03-11 11:53:56,711: INFO: base_agent]: [IFAgent] Received message from 'RFAgent'
+[2026-03-11 11:53:56,755: INFO: if_agent]: [IFAgent] Batch 1 | s_IF: min=0.000 max=0.725 mean=0.034
+[2026-03-11 11:53:56,755: INFO: base_agent]: [IFAgent] Done  ->> status=ok
+[2026-03-11 11:53:56,755: INFO: base_agent]: [FusionAgent] Received message from 'IFAgent'
+[2026-03-11 11:53:56,755: INFO: fusion_agent]: [FusionAgent] Batch 1 | w=0.70 tau_alert=0.487 tau_block=0.587
+[2026-03-11 11:53:56,763: INFO: fusion_agent]: [FusionAgent] Decisions  ->> CLEAR=500 ALERT=14 AUTO-BLOCK=86
+[2026-03-11 11:53:56,763: INFO: base_agent]: [FusionAgent] Done  ->> status=ok
+[2026-03-11 11:53:56,763: INFO: base_agent]: [ActionAgent] Received message from 'FusionAgent'
+[2026-03-11 11:53:56,763: INFO: action_agent]: [ActionAgent] Batch 1 | CLEARED=500 ALERTED=14 BLOCKED=86
+[2026-03-11 11:53:56,763: INFO: base_agent]: [ActionAgent] Done  ->> status=ok
+[2026-03-11 11:53:56,763: INFO: base_agent]: [MonitoringAgent] Received message from 'ActionAgent'
+[2026-03-11 11:53:56,763: INFO: monitoring_agent]: [MonitoringAgent] Batch 1 | TP=99 FP=1 FN=36 TN=464 | P=0.990 R=0.733 F1=0.843 | ROC=0.9888 PR=0.9708 | latency=0.000571s/tx
+[2026-03-11 11:53:56,763: INFO: base_agent]: [MonitoringAgent] Done  ->> status=ok
+[2026-03-11 11:53:56,763: INFO: base_agent]: [AdaptationAgent] Received message from 'MonitoringAgent'
+[2026-03-11 11:53:56,763: INFO: adaptation_agent]: [AdaptationAgent] Recall 0.733 < 0.8 ->> LOWER tau: 0.487 ->> 0.467
+[2026-03-11 11:53:56,778: INFO: adaptation_agent]: [AdaptationAgent] Weight conditions not met > w unchanged at 0.70
+[2026-03-11 11:53:56,779: INFO: adaptation_agent]: [AdaptationAgent] Batch 1 Adaptation complete ->> w=0.70 tau_alert=0.467 tau_block=0.567
+[2026-03-11 11:53:56,780: INFO: base_agent]: [AdaptationAgent] Done  ->> status=ok
+[2026-03-11 11:53:56,780: INFO: coordinator_agent]: [CoordinatorAgent] State updated  ->> w=0.70 tau_alert=0.467 tau_block=0.567
+[2026-03-11 11:53:56,780: INFO: coordinator_agent]: 
+=======================================================
+[CoordinatorAgent] BATCH 2/5
+=======================================================
+[2026-03-11 11:53:56,784: INFO: base_agent]: [PerceptionAgent] Received message from 'CoordinatorAgent'
+[2026-03-11 11:53:56,784: INFO: perception_agent]: [PerceptionAgent] Batch 2 | size=600 | frauds_in_batch=124 | fraud_rate=0.207
+[2026-03-11 11:53:56,784: INFO: base_agent]: [PerceptionAgent] Done  ->> status=ok
+[2026-03-11 11:53:56,784: INFO: base_agent]: [RFAgent] Received message from 'PerceptionAgent'
+[2026-03-11 11:53:56,973: INFO: rf_agent]: [RFAgent] Batch 2 | p_RF: min=0.000 max=1.000 mean=0.193
+[2026-03-11 11:53:56,976: INFO: base_agent]: [RFAgent] Done  ->> status=ok
+[2026-03-11 11:53:56,976: INFO: base_agent]: [IFAgent] Received message from 'RFAgent'
+[2026-03-11 11:53:57,008: INFO: if_agent]: [IFAgent] Batch 2 | s_IF: min=0.000 max=0.464 mean=0.029
+[2026-03-11 11:53:57,013: INFO: base_agent]: [IFAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,014: INFO: base_agent]: [FusionAgent] Received message from 'IFAgent'
+[2026-03-11 11:53:57,014: INFO: fusion_agent]: [FusionAgent] Batch 2 | w=0.70 tau_alert=0.467 tau_block=0.567
+[2026-03-11 11:53:57,014: INFO: fusion_agent]: [FusionAgent] Decisions  ->> CLEAR=508 ALERT=14 AUTO-BLOCK=78
+[2026-03-11 11:53:57,014: INFO: base_agent]: [FusionAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,014: INFO: base_agent]: [ActionAgent] Received message from 'FusionAgent'
+[2026-03-11 11:53:57,014: INFO: action_agent]: [ActionAgent] Batch 2 | CLEARED=508 ALERTED=14 BLOCKED=78
+[2026-03-11 11:53:57,014: INFO: base_agent]: [ActionAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,014: INFO: base_agent]: [MonitoringAgent] Received message from 'ActionAgent'
+[2026-03-11 11:53:57,014: INFO: monitoring_agent]: [MonitoringAgent] Batch 2 | TP=92 FP=0 FN=32 TN=476 | P=1.000 R=0.742 F1=0.852 | ROC=0.9797 PR=0.9617 | latency=0.000383s/tx
+[2026-03-11 11:53:57,014: INFO: base_agent]: [MonitoringAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,030: INFO: base_agent]: [AdaptationAgent] Received message from 'MonitoringAgent'
+[2026-03-11 11:53:57,032: INFO: adaptation_agent]: [AdaptationAgent] Recall 0.742 < 0.8 ->> LOWER tau: 0.467 ->> 0.447
+[2026-03-11 11:53:57,032: INFO: adaptation_agent]: [AdaptationAgent] Weight conditions not met > w unchanged at 0.70
+[2026-03-11 11:53:57,032: INFO: adaptation_agent]: [AdaptationAgent] Batch 2 Adaptation complete ->> w=0.70 tau_alert=0.447 tau_block=0.547
+[2026-03-11 11:53:57,032: INFO: base_agent]: [AdaptationAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,037: INFO: coordinator_agent]: [CoordinatorAgent] State updated  ->> w=0.70 tau_alert=0.447 tau_block=0.547
+[2026-03-11 11:53:57,038: INFO: coordinator_agent]: 
+=======================================================
+[CoordinatorAgent] BATCH 3/5
+=======================================================
+[2026-03-11 11:53:57,039: INFO: base_agent]: [PerceptionAgent] Received message from 'CoordinatorAgent'
+[2026-03-11 11:53:57,039: INFO: perception_agent]: [PerceptionAgent] Batch 3 | size=600 | frauds_in_batch=142 | fraud_rate=0.237
+[2026-03-11 11:53:57,039: INFO: base_agent]: [PerceptionAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,039: INFO: base_agent]: [RFAgent] Received message from 'PerceptionAgent'
+[2026-03-11 11:53:57,230: INFO: rf_agent]: [RFAgent] Batch 3 | p_RF: min=0.000 max=1.000 mean=0.220
+[2026-03-11 11:53:57,230: INFO: base_agent]: [RFAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,230: INFO: base_agent]: [IFAgent] Received message from 'RFAgent'
+[2026-03-11 11:53:57,295: INFO: if_agent]: [IFAgent] Batch 3 | s_IF: min=0.000 max=0.929 mean=0.028
+[2026-03-11 11:53:57,296: INFO: base_agent]: [IFAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,296: INFO: base_agent]: [FusionAgent] Received message from 'IFAgent'
+[2026-03-11 11:53:57,296: INFO: fusion_agent]: [FusionAgent] Batch 3 | w=0.70 tau_alert=0.447 tau_block=0.547
+[2026-03-11 11:53:57,296: INFO: fusion_agent]: [FusionAgent] Decisions  ->> CLEAR=489 ALERT=17 AUTO-BLOCK=94
+[2026-03-11 11:53:57,302: INFO: base_agent]: [FusionAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,304: INFO: base_agent]: [ActionAgent] Received message from 'FusionAgent'
+[2026-03-11 11:53:57,305: INFO: action_agent]: [ActionAgent] Batch 3 | CLEARED=489 ALERTED=17 BLOCKED=94
+[2026-03-11 11:53:57,306: INFO: base_agent]: [ActionAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,306: INFO: base_agent]: [MonitoringAgent] Received message from 'ActionAgent'
+[2026-03-11 11:53:57,313: INFO: monitoring_agent]: [MonitoringAgent] Batch 3 | TP=107 FP=4 FN=35 TN=454 | P=0.964 R=0.754 F1=0.846 | ROC=0.9858 PR=0.9631 | latency=0.000447s/tx
+[2026-03-11 11:53:57,313: INFO: base_agent]: [MonitoringAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,313: INFO: base_agent]: [AdaptationAgent] Received message from 'MonitoringAgent'
+[2026-03-11 11:53:57,313: INFO: adaptation_agent]: [AdaptationAgent] Recall 0.754 < 0.8 ->> LOWER tau: 0.447 ->> 0.427
+[2026-03-11 11:53:57,313: INFO: adaptation_agent]: [AdaptationAgent] Weight conditions not met > w unchanged at 0.70
+[2026-03-11 11:53:57,313: INFO: adaptation_agent]: [AdaptationAgent] Batch 3 Adaptation complete ->> w=0.70 tau_alert=0.427 tau_block=0.527
+[2026-03-11 11:53:57,313: INFO: base_agent]: [AdaptationAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,313: INFO: coordinator_agent]: [CoordinatorAgent] State updated  ->> w=0.70 tau_alert=0.427 tau_block=0.527
+[2026-03-11 11:53:57,313: INFO: coordinator_agent]: 
+=======================================================
+[CoordinatorAgent] BATCH 4/5
+=======================================================
+[2026-03-11 11:53:57,313: INFO: base_agent]: [PerceptionAgent] Received message from 'CoordinatorAgent'
+[2026-03-11 11:53:57,330: INFO: perception_agent]: [PerceptionAgent] Batch 4 | size=600 | frauds_in_batch=130 | fraud_rate=0.217
+[2026-03-11 11:53:57,331: INFO: base_agent]: [PerceptionAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,332: INFO: base_agent]: [RFAgent] Received message from 'PerceptionAgent'
+[2026-03-11 11:53:57,538: INFO: rf_agent]: [RFAgent] Batch 4 | p_RF: min=0.000 max=1.000 mean=0.202
+[2026-03-11 11:53:57,538: INFO: base_agent]: [RFAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,538: INFO: base_agent]: [IFAgent] Received message from 'RFAgent'
+[2026-03-11 11:53:57,583: INFO: if_agent]: [IFAgent] Batch 4 | s_IF: min=0.000 max=0.901 mean=0.036
+[2026-03-11 11:53:57,583: INFO: base_agent]: [IFAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,583: INFO: base_agent]: [FusionAgent] Received message from 'IFAgent'
+[2026-03-11 11:53:57,583: INFO: fusion_agent]: [FusionAgent] Batch 4 | w=0.70 tau_alert=0.427 tau_block=0.527
+[2026-03-11 11:53:57,583: INFO: fusion_agent]: [FusionAgent] Decisions  ->> CLEAR=500 ALERT=9 AUTO-BLOCK=91
+[2026-03-11 11:53:57,583: INFO: base_agent]: [FusionAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,583: INFO: base_agent]: [ActionAgent] Received message from 'FusionAgent'
+[2026-03-11 11:53:57,583: INFO: action_agent]: [ActionAgent] Batch 4 | CLEARED=500 ALERTED=9 BLOCKED=91
+[2026-03-11 11:53:57,583: INFO: base_agent]: [ActionAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,596: INFO: base_agent]: [MonitoringAgent] Received message from 'ActionAgent'
+[2026-03-11 11:53:57,604: INFO: monitoring_agent]: [MonitoringAgent] Batch 4 | TP=98 FP=2 FN=32 TN=468 | P=0.980 R=0.754 F1=0.852 | ROC=0.9756 PR=0.9448 | latency=0.000472s/tx
+[2026-03-11 11:53:57,604: INFO: base_agent]: [MonitoringAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,606: INFO: base_agent]: [AdaptationAgent] Received message from 'MonitoringAgent'
+[2026-03-11 11:53:57,607: INFO: adaptation_agent]: [AdaptationAgent] Recall 0.754 < 0.8 ->> LOWER tau: 0.427 ->> 0.407
+[2026-03-11 11:53:57,607: INFO: adaptation_agent]: [AdaptationAgent] Weight conditions not met > w unchanged at 0.70
+[2026-03-11 11:53:57,607: INFO: adaptation_agent]: [AdaptationAgent] Batch 4 Adaptation complete ->> w=0.70 tau_alert=0.407 tau_block=0.507
+[2026-03-11 11:53:57,610: INFO: base_agent]: [AdaptationAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,611: INFO: coordinator_agent]: [CoordinatorAgent] State updated  ->> w=0.70 tau_alert=0.407 tau_block=0.507
+[2026-03-11 11:53:57,612: INFO: coordinator_agent]: 
+=======================================================
+[CoordinatorAgent] BATCH 5/5
+=======================================================
+[2026-03-11 11:53:57,615: INFO: base_agent]: [PerceptionAgent] Received message from 'CoordinatorAgent'
+[2026-03-11 11:53:57,616: INFO: perception_agent]: [PerceptionAgent] Batch 5 | size=61 | frauds_in_batch=14 | fraud_rate=0.230
+[2026-03-11 11:53:57,616: INFO: base_agent]: [PerceptionAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,616: INFO: base_agent]: [RFAgent] Received message from 'PerceptionAgent'
+[2026-03-11 11:53:57,761: INFO: rf_agent]: [RFAgent] Batch 5 | p_RF: min=0.000 max=1.000 mean=0.234
+[2026-03-11 11:53:57,763: INFO: base_agent]: [RFAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,764: INFO: base_agent]: [IFAgent] Received message from 'RFAgent'
+[2026-03-11 11:53:57,800: INFO: if_agent]: [IFAgent] Batch 5 | s_IF: min=0.000 max=0.468 mean=0.035
+[2026-03-11 11:53:57,801: INFO: base_agent]: [IFAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,802: INFO: base_agent]: [FusionAgent] Received message from 'IFAgent'
+[2026-03-11 11:53:57,802: INFO: fusion_agent]: [FusionAgent] Batch 5 | w=0.70 tau_alert=0.407 tau_block=0.507
+[2026-03-11 11:53:57,804: INFO: fusion_agent]: [FusionAgent] Decisions  ->> CLEAR=49 ALERT=1 AUTO-BLOCK=11
+[2026-03-11 11:53:57,805: INFO: base_agent]: [FusionAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,807: INFO: base_agent]: [ActionAgent] Received message from 'FusionAgent'
+[2026-03-11 11:53:57,808: INFO: action_agent]: [ActionAgent] Batch 5 | CLEARED=49 ALERTED=1 BLOCKED=11
+[2026-03-11 11:53:57,809: INFO: base_agent]: [ActionAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,809: INFO: base_agent]: [MonitoringAgent] Received message from 'ActionAgent'
+[2026-03-11 11:53:57,813: INFO: monitoring_agent]: [MonitoringAgent] Batch 5 | TP=11 FP=1 FN=3 TN=46 | P=0.917 R=0.786 F1=0.846 | ROC=0.9909 PR=0.9724 | latency=0.003209s/tx
+[2026-03-11 11:53:57,813: INFO: base_agent]: [MonitoringAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,813: INFO: base_agent]: [AdaptationAgent] Received message from 'MonitoringAgent'
+[2026-03-11 11:53:57,813: INFO: adaptation_agent]: [AdaptationAgent] Recall 0.786 < 0.8 ->> LOWER tau: 0.407 ->> 0.387
+[2026-03-11 11:53:57,813: INFO: adaptation_agent]: [AdaptationAgent] Weight conditions not met > w unchanged at 0.70
+[2026-03-11 11:53:57,813: INFO: adaptation_agent]: [AdaptationAgent] Batch 5 Adaptation complete ->> w=0.70 tau_alert=0.387 tau_block=0.487
+[2026-03-11 11:53:57,813: INFO: base_agent]: [AdaptationAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,813: INFO: coordinator_agent]: [CoordinatorAgent] State updated  ->> w=0.70 tau_alert=0.387 tau_block=0.487
+[2026-03-11 11:53:57,813: INFO: coordinator_agent]: 
+[CoordinatorAgent] All 5 batches complete.
+Final agent state: {'w': 0.7, 'tau_alert': 0.3869999999999999, 'tau_block': 0.4869999999999999}
+[2026-03-11 11:53:57,813: INFO: base_agent]: [CoordinatorAgent] Done  ->> status=ok
+[2026-03-11 11:53:57,813: INFO: main_multiagent]: 
+--- PHASE 5: Saving Results ---
+[2026-03-11 11:53:57,813: INFO: main_multiagent]: Batch history saved  ->> runs/run_multiagent/batch_history.csv
+[2026-03-11 11:53:57,830: INFO: main_multiagent]: Final state saved  ->> runs/run_multiagent/final_state.json
+[2026-03-11 11:53:57,830: INFO: main_multiagent]: 
+--- PHASE 6: Results Summary ---
+[2026-03-11 11:53:57,846: INFO: main_multiagent]: Multi-Agent Pipeline Complete!

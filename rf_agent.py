@@ -5,7 +5,7 @@ Supervised detector that outputs p_RF(z) for each transaction.
 
 import numpy as np
 import pandas as pd
-from agents.base_agent import BaseAgent, AgentMessage
+from  base_agent import BaseAgent, AgentMessage
 
 
 class RFAgent(BaseAgent):

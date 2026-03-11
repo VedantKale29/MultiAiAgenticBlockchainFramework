@@ -5,7 +5,7 @@ Computes S(z) = w*p_RF + (1-w)*s_IF, applies dual-threshold decisions.
 
 import numpy as np
 import pandas as pd
-from agents.base_agent import BaseAgent, AgentMessage
+from  base_agent import BaseAgent, AgentMessage
 
 
 class FusionAgent(BaseAgent):
@@ -43,7 +43,7 @@ class FusionAgent(BaseAgent):
         n_block = int(np.sum(decisions == "AUTO-BLOCK"))
 
         self.logger.info(
-            f"[{self.name}] Decisions → CLEAR={n_clear} ALERT={n_alert} AUTO-BLOCK={n_block}"
+            f"[{self.name}] Decisions  ->> CLEAR={n_clear} ALERT={n_alert} AUTO-BLOCK={n_block}"
         )
 
         return AgentMessage(

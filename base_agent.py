@@ -38,7 +38,7 @@ from logger import logging
 @dataclass
 class AgentMessage:
     """
-    A structured message passed between agents.
+    A structured message passed between  
 
     Example:
         msg = AgentMessage(
@@ -61,10 +61,10 @@ class BaseAgent:
     All agents in this system extend BaseAgent.
 
     What you get for FREE by inheriting BaseAgent:
-      - self.name          → agent's identity
-      - self.logger        → pre-configured logger
-      - self.run(msg)      → standard entry point (calls self._run internally)
-      - error handling     → if _run crashes, BaseAgent catches it and
+      - self.name           ->> agent's identity
+      - self.logger         ->> pre-configured logger
+      - self.run(msg)       ->> standard entry point (calls self._run internally)
+      - error handling      ->> if _run crashes, BaseAgent catches it and
                              returns an error AgentMessage automatically
 
     What YOU must implement in each subclass:
@@ -86,7 +86,7 @@ class BaseAgent:
         try:
             self.logger.info(f"[{self.name}] Received message from '{msg.sender}'")
             result = self._run(msg)
-            self.logger.info(f"[{self.name}] Done → status={result.status}")
+            self.logger.info(f"[{self.name}] Done  ->> status={result.status}")
             return result
         except Exception as e:
             self.logger.error(f"[{self.name}] CRASHED: {e}")

@@ -26,19 +26,19 @@ The CoordinatorAgent is the MANAGER — it:
   4. Builds the final history across all batches
 
 AGENT PIPELINE ORDER (matches your diagram exactly):
-  PerceptionAgent  → cleans state vector z
+  PerceptionAgent   ->> cleans state vector z
        ↓
-  RFAgent          → computes p_RF(z)
+  RFAgent           ->> computes p_RF(z)
        ↓
-  IFAgent          → computes s_IF(z)
+  IFAgent           ->> computes s_IF(z)
        ↓
-  FusionAgent      → S(z) = w*p_RF + (1-w)*s_IF → decisions
+  FusionAgent       ->> S(z) = w*p_RF + (1-w)*s_IF  ->> decisions
        ↓
-  ActionAgent      → enforces CLEAR/ALERT/AUTO-BLOCK
+  ActionAgent       ->> enforces CLEAR/ALERT/AUTO-BLOCK
        ↓
-  MonitoringAgent  → computes metrics + batch log
+  MonitoringAgent   ->> computes metrics + batch log
        ↓
-  AdaptationAgent  → updates tau, tau_block, w
+  AdaptationAgent   ->> updates tau, tau_block, w
        ↓
   (back to top for next batch with updated state)
 
@@ -59,14 +59,14 @@ import time
 import numpy as np
 import pandas as pd
 
-from agents.base_agent import BaseAgent, AgentMessage
-from agents.perception_agent  import PerceptionAgent
-from agents.rf_agent           import RFAgent
-from agents.if_agent           import IFAgent
-from agents.fusion_agent       import FusionAgent
-from agents.action_agent       import ActionAgent
-from agents.monitoring_agent   import MonitoringAgent
-from agents.adaptation_agent   import AdaptationAgent
+from  base_agent import BaseAgent, AgentMessage
+from  perception_agent  import PerceptionAgent
+from  rf_agent           import RFAgent
+from  if_agent           import IFAgent
+from  fusion_agent       import FusionAgent
+from  action_agent       import ActionAgent
+from  monitoring_agent   import MonitoringAgent
+from  adaptation_agent   import AdaptationAgent
 
 import config
 
@@ -161,7 +161,7 @@ class CoordinatorAgent(BaseAgent):
             batch_start_time = time.time()
 
             # ── 1. Build the initial message ───────────────────────
-            # This is the "envelope" we pass through all agents.
+            # This is the "envelope" we pass through all  
             # Each agent ADDS their output to it.
             current_msg = AgentMessage(
                 sender="CoordinatorAgent",
@@ -198,7 +198,7 @@ class CoordinatorAgent(BaseAgent):
                 self.logger.error(f"IFAgent failed: {current_msg.error}")
                 continue
 
-            # STEP 4: Fusion — S(z) = w*p_RF + (1-w)*s_IF → decisions
+            # STEP 4: Fusion — S(z) = w*p_RF + (1-w)*s_IF  ->> decisions
             current_msg = self.fusion_agent.run(current_msg)
             if current_msg.status == "error":
                 self.logger.error(f"FusionAgent failed: {current_msg.error}")
@@ -233,7 +233,7 @@ class CoordinatorAgent(BaseAgent):
                 self.agent_state.update(new_state)
 
                 self.logger.info(
-                    f"[{self.name}] State updated → "
+                    f"[{self.name}] State updated  ->> "
                     f"w={self.agent_state['w']:.2f} "
                     f"tau_alert={self.agent_state['tau_alert']:.3f} "
                     f"tau_block={self.agent_state['tau_block']:.3f}"

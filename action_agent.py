@@ -5,7 +5,7 @@ Enforces CLEAR/ALERT/AUTO-BLOCK decisions and produces action report.
 
 import numpy as np
 import pandas as pd
-from agents.base_agent import BaseAgent, AgentMessage
+from base_agent import BaseAgent, AgentMessage
 
 
 class ActionAgent(BaseAgent):

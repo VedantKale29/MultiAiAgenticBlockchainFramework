@@ -5,7 +5,7 @@ Unsupervised anomaly detector that outputs s_IF(z) scaled to [0,1].
 
 import numpy as np
 import pandas as pd
-from agents.base_agent import BaseAgent, AgentMessage
+from  base_agent import BaseAgent, AgentMessage
 
 
 class IFAgent(BaseAgent):

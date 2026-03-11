@@ -1,0 +1,11 @@
+[2026-03-11 12:47:55,064: INFO: plot_result]: Generating plots
+[2026-03-11 12:47:55,066: INFO: plot_result]: Plotting run_multiagent
+[2026-03-11 12:47:57,157: INFO: plot_result]: Saved runs/run_multiagent\Figure_2_Batch_Metrics.png
+[2026-03-11 12:47:58,045: INFO: plot_result]: Saved runs/run_multiagent\Figure_3_Threshold.png
+[2026-03-11 12:47:58,390: INFO: plot_result]: Saved runs/run_multiagent\Figure_4_RF_Weight.png
+[2026-03-11 12:47:58,390: WARNING: plot_result]: No history in run1
+[2026-03-11 12:47:58,390: WARNING: plot_result]: No history in run2
+[2026-03-11 12:47:58,390: WARNING: plot_result]: No history in run3
+[2026-03-11 12:47:58,390: WARNING: plot_result]: No history in run4
+[2026-03-11 12:47:58,390: WARNING: plot_result]: No history in run5
+[2026-03-11 12:47:58,390: INFO: plot_result]: All plots done
