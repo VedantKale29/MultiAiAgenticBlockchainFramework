@@ -40,7 +40,7 @@ OUTPUT (AgentMessage payload):
 import numpy as np
 import pandas as pd
 
-from  base_agent import BaseAgent, AgentMessage
+from  agents.base_agent import BaseAgent, AgentMessage
 
 
 class PerceptionAgent(BaseAgent):

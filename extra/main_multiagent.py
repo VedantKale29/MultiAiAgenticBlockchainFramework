@@ -35,19 +35,19 @@ import json
 import time
 import pandas as pd
 
-from logger import logging
-import config
+from  logger import logging
+import  config as config
 
 # Data loading (unchanged from original project)
 from data_loader import load_and_clean_data, get_train_test_split, PAPER_FEATURES
 
 # Models (unchanged from original project)
-from rf_model import RFModel
-from if_model import IFModel
+from  rf_model import RFModel
+from  if_model import IFModel
 
 # ── NEW: Multi-Agent imports ───────────────────────────────────
-from  coordinator_agent import CoordinatorAgent
-from  base_agent import AgentMessage
+from  agents.coordinator_agent import CoordinatorAgent
+from  agents.base_agent import AgentMessage
 
 
 # ──────────────────────────────────────────────────────────────

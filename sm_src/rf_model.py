@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from logger import logging
-import config
+from  logger import logging
+import  config as config
 
 class RFModel:
     def __init__(self, seed: int):

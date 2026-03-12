@@ -4,8 +4,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from logger import logging
-import config
+from  logger import logging
+import  config as config
 
 
 def safe_has(df, col):

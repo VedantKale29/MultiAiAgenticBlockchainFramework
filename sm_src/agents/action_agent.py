@@ -1,11 +1,17 @@
 """
-action_agent.py — AGENT 5: ActionAgent
-Enforces CLEAR/ALERT/AUTO-BLOCK decisions and produces action report.
+agents/action_agent.py
+======================
+AGENT 5: ActionAgent — enforces CLEAR / ALERT / AUTO-BLOCK
+
+ROLE IN PAPER:
+  "The action module enforces the decisions made by the cognition layer."
+
+NO AWS CALLS. Pure decision enforcement and summary reporting.
 """
 
+
 import numpy as np
-import pandas as pd
-from base_agent import BaseAgent, AgentMessage
+from agents.base_agent import BaseAgent, AgentMessage
 
 
 class ActionAgent(BaseAgent):

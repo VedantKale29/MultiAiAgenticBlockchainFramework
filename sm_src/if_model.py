@@ -2,8 +2,8 @@ import pandas as pd
 import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import MinMaxScaler
-from logger import logging
-import config
+from  logger import logging
+import  config as config
 
 class IFModel:
     def __init__(self, seed: int, y_train: pd.Series):

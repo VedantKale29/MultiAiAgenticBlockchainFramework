@@ -1,11 +1,24 @@
 """
-fusion_agent.py — AGENT 4: FusionAgent (Cognition Layer)
-Computes S(z) = w*p_RF + (1-w)*s_IF, applies dual-threshold decisions.
+agents/fusion_agent.py
+======================
+AGENT 4: FusionAgent — Cognition Layer
+
+ROLE IN PAPER:
+  S(z) = w * p_RF(z) + (1-w) * s_IF(z)
+  Then apply dual thresholds:
+    S >= tau_block  → AUTO-BLOCK
+    S >= tau_alert  → ALERT
+    else            → CLEAR
+
+    # w = weight on RF vs IF = 0.7 in paper
+    # tau_alert = threshold for ALERT = 0.5 in paper
+    # tau_block = threshold for AUTO-BLOCK = 0.9 in paper
+NO AWS CALLS. Pure computation using current agent_state.
 """
 
 import numpy as np
 import pandas as pd
-from  base_agent import BaseAgent, AgentMessage
+from  agents.base_agent import BaseAgent, AgentMessage
 
 
 class FusionAgent(BaseAgent):

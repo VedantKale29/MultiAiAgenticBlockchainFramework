@@ -16,6 +16,9 @@ Instead of copy-pasting these behaviors into every agent, we define
 them ONCE here in BaseAgent, and every agent just calls super().__init__()
 to get all of this for free.
 
+AgentMessage is the "envelope" passed between agents.
+Every agent receives one, adds its output, and passes it to the next.
+
 WHAT IS AN "AgentMessage"?
 --------------------------
 Think of agents as workers in an office. When one worker finishes a task,
@@ -29,7 +32,7 @@ next worker. The envelope always contains:
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
-from logger import logging
+from  logger import logging
 
 
 # ─────────────────────────────────────────────────────────────

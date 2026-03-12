@@ -2,8 +2,8 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
-from logger import logging
-import config
+from  logger import logging
+import  config as config
 
 PAPER_FEATURES = [
     "Avg min between sent tnx",

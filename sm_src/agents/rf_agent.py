@@ -1,20 +1,25 @@
 """
-if_agent.py — AGENT 3: IFAgent
-Unsupervised anomaly detector that outputs s_IF(z) scaled to [0,1].
-"""
+agents/rf_agent.py
+==================
+AGENT 2: RFAgent — supervised detector → p_RF(z)
 
+ROLE IN PAPER:
+  "Random Forest outputs the probability of a transaction being fraudulent."
+  p_RF(z) = average of T=250 tree outputs
+
+NO AWS CALLS. Pure inference.
+"""
 import numpy as np
 import pandas as pd
-from  base_agent import BaseAgent, AgentMessage
+from  agents.base_agent import BaseAgent, AgentMessage
 
 
-class IFAgent(BaseAgent):
-    def __init__(self, if_model):
-        super().__init__(name="IFAgent")
-        self.if_model = if_model
+class RFAgent(BaseAgent):
+    def __init__(self, rf_model):
+        super().__init__(name="RFAgent")
+        self.rf_model = rf_model
 
     def _run(self, msg: AgentMessage) -> AgentMessage:
-        p_rf        = msg.payload["p_rf"]
         X_batch     = msg.payload["X_batch"]
         y_batch     = msg.payload["y_batch"]
         batch_idx   = msg.payload["batch_idx"]
@@ -22,19 +27,18 @@ class IFAgent(BaseAgent):
         agent_state = msg.payload["agent_state"]
         start_time  = msg.payload["start_time"]
 
-        # MinMax-scaled anomaly scores in [0, 1]
-        s_if: np.ndarray = self.if_model.score(X_batch)
+        # RF fraud probabilities
+        p_rf: np.ndarray = self.rf_model.predict_proba(X_batch)
 
         self.logger.info(
             f"[{self.name}] Batch {batch_idx+1} | "
-            f"s_IF: min={s_if.min():.3f} max={s_if.max():.3f} mean={s_if.mean():.3f}"
+            f"p_RF: min={p_rf.min():.3f} max={p_rf.max():.3f} mean={p_rf.mean():.3f}"
         )
 
         return AgentMessage(
             sender=self.name,
             payload={
                 "p_rf"       : p_rf,
-                "s_if"       : s_if,
                 "X_batch"    : X_batch,
                 "y_batch"    : y_batch,
                 "batch_idx"  : batch_idx,
