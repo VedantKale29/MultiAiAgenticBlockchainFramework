@@ -29,6 +29,7 @@ class FusionAgent(BaseAgent):
         p_rf        = msg.payload["p_rf"]
         s_if        = msg.payload["s_if"]
         y_batch     = msg.payload["y_batch"]
+        tx_meta     = msg.payload["tx_meta"]
         batch_idx   = msg.payload["batch_idx"]
         batch_size  = msg.payload["batch_size"]
         agent_state = msg.payload["agent_state"]
@@ -51,13 +52,13 @@ class FusionAgent(BaseAgent):
         decisions[(risk_scores >= tau_alert) & (risk_scores < tau_block)] = "ALERT"
         decisions[risk_scores >= tau_block] = "AUTO-BLOCK"
 
-        n_clear = int(np.sum(decisions == "CLEAR"))
-        n_alert = int(np.sum(decisions == "ALERT"))
-        n_block = int(np.sum(decisions == "AUTO-BLOCK"))
+        # n_clear = int(np.sum(decisions == "CLEAR"))
+        # n_alert = int(np.sum(decisions == "ALERT"))
+        # n_block = int(np.sum(decisions == "AUTO-BLOCK"))
 
-        self.logger.info(
-            f"[{self.name}] Decisions  ->> CLEAR={n_clear} ALERT={n_alert} AUTO-BLOCK={n_block}"
-        )
+        # self.logger.info(
+        #     f"[{self.name}] Decisions  ->> CLEAR={n_clear} ALERT={n_alert} AUTO-BLOCK={n_block}"
+        # )
 
         return AgentMessage(
             sender=self.name,
@@ -67,6 +68,7 @@ class FusionAgent(BaseAgent):
                 "p_rf"        : p_rf,
                 "s_if"        : s_if,
                 "y_batch"     : y_batch,
+                "tx_meta"     : tx_meta,
                 "batch_idx"   : batch_idx,
                 "batch_size"  : batch_size,
                 "agent_state" : agent_state,

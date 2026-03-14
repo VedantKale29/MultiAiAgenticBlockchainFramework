@@ -55,6 +55,8 @@ class PerceptionAgent(BaseAgent):
         batch_idx: int        = msg.payload["batch_idx"]
         agent_state: dict     = msg.payload["agent_state"]
         start_time: float     = msg.payload["start_time"]
+        raw_meta              = msg.payload.get("tx_meta", None)
+
 
         # ── Step 1: check for missing columns ──────────────────────
         missing_cols = [c for c in self.expected_features if c not in X_batch.columns]
@@ -78,6 +80,25 @@ class PerceptionAgent(BaseAgent):
         batch_size = len(X_batch)
         fraud_count = int(y_batch.sum())
 
+        # Build metadata for policy/response layer
+        if raw_meta is None:
+            raw_meta = pd.DataFrame(index=X_batch.index)
+
+        tx_meta = {
+            "tx_hash": raw_meta["tx_hash"].astype(str).tolist()
+                if "tx_hash" in raw_meta.columns
+                else [f"tx_{batch_idx+1}_{i}" for i in range(batch_size)],
+            "from_address": raw_meta["from_address"].astype(str).tolist()
+                if "from_address" in raw_meta.columns
+                else [f"wallet_from_{idx}" for idx in X_batch.index],
+            "to_address": raw_meta["to_address"].astype(str).tolist()
+                if "to_address" in raw_meta.columns
+                else [f"wallet_to_{idx}" for idx in X_batch.index],
+            "timestamp": raw_meta["timestamp"].astype(str).tolist()
+                if "timestamp" in raw_meta.columns
+                else [f"batch_{batch_idx+1}" for _ in range(batch_size)],
+        }
+
         self.logger.info(
             f"[{self.name}] Batch {batch_idx+1} | "
             f"size={batch_size} | "
@@ -92,6 +113,7 @@ class PerceptionAgent(BaseAgent):
                 "X_batch"    : X_batch,
                 "y_batch"    : y_batch,
                 "batch_idx"  : batch_idx,
+                "tx_meta"    : tx_meta,
                 "batch_size" : batch_size,
                 "agent_state": agent_state,
                 "start_time" : start_time,

@@ -19,6 +19,12 @@ RULES:
   2. If decision == AUTO-BLOCK      -> BLOCK
   3. If decision == ALERT           -> WATCHLIST
   4. If wallet gets repeated ALERTs -> escalate to BLOCK
+
+  promote to blocked when a walet gets more than N alerts (configurable threshold)
+  N = 3 by default, meaning on the 4th alert we block the wallet
+  if wallet is in watchlist and gets a new alert, update the watchlist entry with new alert count, recent tx hash, last seen timestamp, and max risk score
+  If a wallet exists in watchlist and the new alert causes the alert count to exceed the threshold, move the wallet to blocked with reason "repeat_alert_escalation"
+  here threshold = config.POLICY_ALERT_ESCALATION_THRESHOLD
 """
 
 import os
@@ -104,6 +110,7 @@ class PolicyAgent(BaseAgent):
         self.blocked[wallet] = entry
 
     def _run(self, msg: AgentMessage) -> AgentMessage:
+        action_report = msg.payload["action_report"]
         decisions   = np.asarray(msg.payload["decisions"], dtype=object)
         risk_scores = np.asarray(msg.payload["risk_scores"], dtype=float)
         p_rf        = np.asarray(msg.payload["p_rf"], dtype=float)
@@ -192,6 +199,7 @@ class PolicyAgent(BaseAgent):
         return AgentMessage(
             sender=self.name,
             payload={
+                "action_report": action_report,
                 "policy_actions": np.asarray(policy_actions, dtype=object),
                 "policy_reasons": np.asarray(policy_reasons, dtype=object),
                 "policy_report": policy_report,

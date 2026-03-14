@@ -95,6 +95,33 @@ def main():
     dataset_path = config.get_dataset_path()
     logging.info(f"Dataset path: {dataset_path}")
 
+    # Read raw dataset separately so metadata columns are preserved
+    raw_df = pd.read_csv(dataset_path)
+
+    # Exact metadata columns from your dataset
+    label_col = "FLAG"
+    wallet_col = "Address"
+    row_id_col = "Index"
+    fallback_row_id_col = "Unnamed: 0"
+
+    # Build metadata table from raw dataset
+    df_meta = pd.DataFrame(index=raw_df.index)
+
+    # Wallet identity
+    df_meta["from_address"] = raw_df[wallet_col].astype(str)
+
+    # Synthetic tx_hash (because dataset has no real tx_hash column)
+    if row_id_col in raw_df.columns:
+        df_meta["tx_hash"] = raw_df[row_id_col].apply(lambda x: f"tx_{x}").astype(str)
+    elif fallback_row_id_col in raw_df.columns:
+        df_meta["tx_hash"] = raw_df[fallback_row_id_col].apply(lambda x: f"tx_{x}").astype(str)
+    else:
+        df_meta["tx_hash"] = [f"tx_{i}" for i in range(len(raw_df))]
+
+    # Dataset has no explicit receiver or timestamp
+    df_meta["to_address"] = "unknown_to"
+    df_meta["timestamp"] = "not_available"
+
     if not os.path.exists(dataset_path) and not dataset_path.startswith("s3://"):
         logging.error(f"Dataset not found: {dataset_path}")
         return
@@ -149,6 +176,8 @@ def main():
     # ──────────────────────────────────────────────────────────
     logging.info("\n--- Training Phase ---")
     X_train, X_test, y_train, y_test = get_train_test_split(df, seed=seed)
+    # Align metadata with test rows using preserved indices
+    X_test_meta = df_meta.loc[X_test.index].copy()
 
     rf_model = RFModel(seed=seed)
     t0 = time.time()
@@ -207,7 +236,11 @@ def main():
     result = coordinator.run(
         AgentMessage(
             sender="main",
-            payload={"X_test": X_test, "y_test": y_test},
+            payload={
+                "X_test": X_test,
+                "y_test": y_test,
+                "X_test_meta": X_test_meta,
+            },
         )
     )
 

@@ -24,6 +24,7 @@ class ActionAgent(BaseAgent):
         p_rf        = msg.payload["p_rf"]
         s_if        = msg.payload["s_if"]
         y_batch     = msg.payload["y_batch"]
+        tx_meta     = msg.payload["tx_meta"]
         batch_idx   = msg.payload["batch_idx"]
         batch_size  = msg.payload["batch_size"]
         agent_state = msg.payload["agent_state"]
@@ -57,6 +58,7 @@ class ActionAgent(BaseAgent):
                 "p_rf"         : p_rf,
                 "s_if"         : s_if,
                 "y_batch"      : y_batch,
+                "tx_meta"      : tx_meta,
                 "batch_idx"    : batch_idx,
                 "batch_size"   : batch_size,
                 "agent_state"  : agent_state,

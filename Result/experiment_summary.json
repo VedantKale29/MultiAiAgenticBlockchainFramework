@@ -1,0 +1,48 @@
+{
+    "run_name": "run_seed42_v1",
+    "seed": 42,
+    "started_at": "2026-03-12T22:23:39.226964",
+    "params": {
+        "seed": 42,
+        "run_mode": "AGENTIC",
+        "batch_size": 600,
+        "rf_trees": 250,
+        "if_trees": 200,
+        "initial_w": 0.7,
+        "initial_tau": 0.487,
+        "delta": 0.1,
+        "target_prec": 0.8,
+        "target_rec": 0.8,
+        "step_tau": 0.02,
+        "step_w": 0.05,
+        "data_split": 0.75,
+        "rf_train_time_sec": 2.1062,
+        "if_train_time_sec": 1.4269
+    },
+    "batch_metrics": [],
+    "final_metrics": {
+        "mean_precision": 0.9716910930471576,
+        "mean_recall": 0.7797755414020748,
+        "mean_f1": 0.863927270646953,
+        "mean_roc_auc": 0.9837473643648963,
+        "mean_pr_ap": 0.9623415069965274,
+        "final_tau_alert": 0.4069999999999999,
+        "final_tau_block": 0.5069999999999999,
+        "final_w": 0.7,
+        "total_policy_watchlist": 66,
+        "total_policy_block": 358
+    },
+    "artifacts": {
+        "attack_log.json": "s3://multiagenticblockchain/agentic-fraud/runs/run_seed42_v1/attack_log.json",
+        "config.json": "s3://multiagenticblockchain/agentic-fraud/runs/run_seed42_v1/config.json",
+        "fraud_events.csv": "s3://multiagenticblockchain/agentic-fraud/runs/run_seed42_v1/fraud_events.csv",
+        "watchlist.json": "s3://multiagenticblockchain/agentic-fraud/runs/run_seed42_v1/watchlist.json",
+        "blocked_wallets.json": "s3://multiagenticblockchain/agentic-fraud/runs/run_seed42_v1/blocked_wallets.json",
+        "final_state.json": "s3://multiagenticblockchain/agentic-fraud/runs/run_seed42_v1/final_state.json",
+        "rf_feature_importance.csv": "s3://multiagenticblockchain/agentic-fraud/runs/run_seed42_v1/rf_feature_importance.csv",
+        "batch_history.csv": "s3://multiagenticblockchain/agentic-fraud/runs/run_seed42_v1/batch_history.csv",
+        "batch_history": "/opt/ml/output/data/batch_history.csv",
+        "final_state": "/opt/ml/output/data/final_state.json"
+    },
+    "finished_at": "2026-03-12T22:23:44.782718"
+}

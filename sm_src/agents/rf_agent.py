@@ -22,6 +22,7 @@ class RFAgent(BaseAgent):
     def _run(self, msg: AgentMessage) -> AgentMessage:
         X_batch     = msg.payload["X_batch"]
         y_batch     = msg.payload["y_batch"]
+        tx_meta     = msg.payload["tx_meta"]
         batch_idx   = msg.payload["batch_idx"]
         batch_size  = msg.payload["batch_size"]
         agent_state = msg.payload["agent_state"]
@@ -41,6 +42,7 @@ class RFAgent(BaseAgent):
                 "p_rf"       : p_rf,
                 "X_batch"    : X_batch,
                 "y_batch"    : y_batch,
+                "tx_meta"    : tx_meta,
                 "batch_idx"  : batch_idx,
                 "batch_size" : batch_size,
                 "agent_state": agent_state,

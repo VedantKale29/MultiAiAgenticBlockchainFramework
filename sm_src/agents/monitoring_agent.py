@@ -66,6 +66,9 @@ class MonitoringAgent(BaseAgent):
         p_rf          = msg.payload["p_rf"]
         s_if          = msg.payload["s_if"]
         y_batch       = msg.payload["y_batch"]
+        tx_meta        = msg.payload["tx_meta"]
+        policy_actions = msg.payload.get("policy_actions", None)
+        policy_reasons = msg.payload.get("policy_reasons", None)
         batch_idx     = msg.payload["batch_idx"]
         batch_size    = msg.payload["batch_size"]
         agent_state   = msg.payload["agent_state"]
@@ -115,20 +118,32 @@ class MonitoringAgent(BaseAgent):
 
         # ── Build batch log record ────────────────────────────────
         batch_log = {
-            "batch"               : batch_idx + 1,
-            "w"                   : agent_state["w"],
-            "tau_alert"           : agent_state["tau_alert"],
-            "tau_block"           : agent_state["tau_block"],
-            "precision"           : round(prec, 6),
-            "recall"              : round(rec,  6),
-            "f1"                  : round(f1,   6),
-            "roc_auc"             : round(roc_auc, 6) if not np.isnan(roc_auc) else None,
-            "pr_ap"               : round(pr_ap,   6) if not np.isnan(pr_ap)   else None,
-            "tp": TP, "fp": FP, "fn": FN, "tn": TN,
-            "latency_per_tx_sec"  : latency_per_tx,
-            "batch_total_time_sec": total_time,
-            **action_report,
+            "batch": batch_idx + 1,
+            "w": float(agent_state["w"]),
+            "tau_alert": float(agent_state["tau_alert"]),
+            "tau_block": float(agent_state["tau_block"]),
+            "precision": float(prec),
+            "recall": float(rec),
+            "f1": float(f1),
+            "roc_auc": float(roc_auc),
+            "pr_ap": float(pr_ap),
+            "latency_per_tx": float(latency_per_tx),
+            "tp": int(TP),
+            "fp": int(FP),
+            "fn": int(FN),
+            "tn": int(TN),
+            "n_pred_positive": int(np.sum(y_pred)),
+            "n_alert": int(np.sum(np.asarray(decisions) == "ALERT")),
+            "n_auto_block": int(np.sum(np.asarray(decisions) == "AUTO-BLOCK")),
+            "n_policy_watchlist": int(np.sum(np.asarray(policy_actions) == "WATCHLIST")) if policy_actions is not None else 0,
+            "n_policy_block": int(np.sum(np.asarray(policy_actions) == "BLOCK")) if policy_actions is not None else 0,
         }
+
+        self.logger.info(
+            f"[{self.name}] Batch {batch_idx+1} | "
+            f"P={prec:.3f} R={rec:.3f} F1={f1:.3f} "
+            f"TP={TP} FP={FP} FN={FN} TN={TN}"
+        )
 
         # ════════════════════════════════════════════════════════
         # AWS INTEGRATION POINT 1 — CloudWatch structured logging
@@ -158,28 +173,30 @@ class MonitoringAgent(BaseAgent):
         # This logs the metrics as a time-series data point in SM Experiments.
         # Each batch = one point on the precision/recall chart in the SM UI.
         if self.tracker:
-            self.tracker.log_batch_metrics(
-                batch     = batch_idx + 1,
-                precision = prec,
-                recall    = rec,
-                f1        = f1,
-                tau_alert = agent_state["tau_alert"],
-                w         = agent_state["w"],
-                tp=TP, fp=FP, fn=FN, tn=TN,
-                roc_auc   = roc_auc if not np.isnan(roc_auc) else None,
-                pr_ap     = pr_ap   if not np.isnan(pr_ap)   else None,
-            )
+            try:
+                self.tracker.log_metrics(batch_log, step=batch_idx + 1)
+            except Exception:
+                pass
+
+        if self.cw_logger:
+            try:
+                self.cw_logger.log_metrics(batch_idx=batch_idx, metrics=batch_log)
+            except Exception:
+                pass
+
 
         return AgentMessage(
             sender=self.name,
             payload={
-                "batch_log"  : batch_log,
-                "p_rf_tp"    : p_rf_tp,
-                "s_if_tp"    : s_if_tp,
-                "tp": TP, "fp": FP, "fn": FN,
-                "prec"       : prec,
-                "rec"        : rec,
-                "batch_idx"  : batch_idx,
+                "batch_log": batch_log,
+                "p_rf_tp": p_rf_tp,
+                "s_if_tp": s_if_tp,
+                "tp": TP,
+                "fp": FP,
+                "fn": FN,
+                "prec": prec,
+                "rec": rec,
+                "batch_idx": batch_idx,
                 "agent_state": agent_state,
             },
             status="ok",

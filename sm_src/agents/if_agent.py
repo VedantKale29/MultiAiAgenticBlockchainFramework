@@ -24,6 +24,7 @@ class IFAgent(BaseAgent):
         p_rf        = msg.payload["p_rf"]
         X_batch     = msg.payload["X_batch"]
         y_batch     = msg.payload["y_batch"]
+        tx_meta     = msg.payload["tx_meta"]
         batch_idx   = msg.payload["batch_idx"]
         batch_size  = msg.payload["batch_size"]
         agent_state = msg.payload["agent_state"]
@@ -44,6 +45,7 @@ class IFAgent(BaseAgent):
                 "s_if"       : s_if,
                 "X_batch"    : X_batch,
                 "y_batch"    : y_batch,
+                "tx_meta"    : tx_meta,
                 "batch_idx"  : batch_idx,
                 "batch_size" : batch_size,
                 "agent_state": agent_state,

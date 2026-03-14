@@ -148,3 +148,9 @@ def make_run_name(seed: int, version: int = 1) -> str:
     Example: make_run_name(42) → "run_seed42_v1"
     """
     return f"run_seed{seed}_v{version}"
+
+# Policy / response settings
+POLICY_ALERT_ESCALATION_THRESHOLD = int(os.getenv("POLICY_ALERT_ESCALATION_THRESHOLD", 3))
+SAVE_WATCHLIST = True
+SAVE_BLOCKLIST = True
+SAVE_FRAUD_EVENTS = True

@@ -11,6 +11,10 @@ WHAT IT DOES:
   - writes fraud_events.csv
   - writes attack_log.json
   - passes data onward to MonitoringAgent
+  attack.json is a cumulative log of all detected fraud events across batches.
+    fraud_events.csv is a tabular log of all detected fraud events, with one row per event.
+    whatchatched.json is a cumulative log of all transactions that were flagged for watchlisting (but not blocked).
+    blocklist.json is a cumulative log of all transactions that were blocked.
 
 NO HUMAN INTERVENTION.
 """
@@ -55,6 +59,7 @@ class ResponseAgent(BaseAgent):
         df.to_csv(self.fraud_events_path, mode="a", index=False, header=write_header)
 
     def _run(self, msg: AgentMessage) -> AgentMessage:
+        action_report = msg.payload["action_report"]
         policy_actions = np.asarray(msg.payload["policy_actions"], dtype=object)
         policy_reasons = np.asarray(msg.payload["policy_reasons"], dtype=object)
         decisions      = np.asarray(msg.payload["decisions"], dtype=object)
@@ -130,6 +135,7 @@ class ResponseAgent(BaseAgent):
         return AgentMessage(
             sender=self.name,
             payload={
+                "action_report": action_report,
                 "response_report": response_report,
                 "policy_actions": policy_actions,
                 "policy_reasons": policy_reasons,
