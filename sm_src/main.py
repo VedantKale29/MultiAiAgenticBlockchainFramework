@@ -111,6 +111,8 @@ def main():
     df_meta["from_address"] = raw_df[wallet_col].astype(str)
 
     # Synthetic tx_hash (because dataset has no real tx_hash column)
+    # tx_hash = "tx_" + Index or Unnamed: 0 or row number
+    # Example: Index=123 → tx_hash=tx_123
     if row_id_col in raw_df.columns:
         df_meta["tx_hash"] = raw_df[row_id_col].apply(lambda x: f"tx_{x}").astype(str)
     elif fallback_row_id_col in raw_df.columns:

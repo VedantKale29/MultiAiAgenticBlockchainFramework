@@ -5,6 +5,9 @@ from sklearn.preprocessing import StandardScaler
 from  logger import logging
 import  config as config
 
+# we performed featyre engineering technique which include
+# Features are Temporal, Volume, Value and Diversity 
+# Where Volume includes features like
 PAPER_FEATURES = [
     "Avg min between sent tnx",
     "Avg min between received tnx",

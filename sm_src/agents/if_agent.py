@@ -3,11 +3,42 @@ agents/if_agent.py
 ==================
 AGENT 3: IFAgent — unsupervised anomaly detector → s_IF(z)
 
+if agent called by rf agent, receives:
+- p_rf: RF probability of fraud (from RFAgent)
+- X_batch: feature matrix for current batch
+- y_batch: true labels for current batch (for evaluation only)
+- tx_meta: transaction metadata (e.g. timestamps, amounts)
+- batch_idx: index of current batch
+- batch_size: number of transactions in current batch
+- agent_state: current state of the agent (e.g. "initial", "running", "final")
+- start_time: timestamp when processing of current batch started    
+
 ROLE IN PAPER:
   "Isolation Forest produces an anomaly score reflecting deviation
    from normal behaviour." Scaled to [0, 1] via MinMaxScaler.
 
 NO AWS CALLS. Pure inference.
+INPUT  (AgentMessage payload):
+  - p_rf: RF probability of fraud (from RFAgent)
+  - X_batch: feature matrix for current batch
+  - y_batch: true labels for current batch (for evaluation only)
+  - tx_meta: transaction metadata (e.g. timestamps, amounts)
+  - batch_idx: index of current batch
+  - batch_size: number of transactions in current batch
+  - agent_state: current state of the agent (e.g. "initial", "running", "final")
+  - start_time: timestamp when processing of current batch started
+  
+
+OUTPUT (AgentMessage payload):
+  - "p_rf"       : passed through from input
+  - "s_if"       : IF anomaly score in [0, 1]
+  - "X_batch"    : passed through from input
+  - "y_batch"    : passed through from input
+  - "tx_meta"    : passed through from input
+  - "batch_idx"  : passed through from input
+  - "batch_size" : passed through from input
+  - "agent_state": passed through from input
+  - "start_time" : passed through from input
 """
 
 import numpy as np

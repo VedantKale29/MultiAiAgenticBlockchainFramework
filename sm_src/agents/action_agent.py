@@ -7,6 +7,30 @@ ROLE IN PAPER:
   "The action module enforces the decisions made by the cognition layer."
 
 NO AWS CALLS. Pure decision enforcement and summary reporting.
+INPUT  (AgentMessage payload):
+  - "decisions"   : np.ndarray — final decisions ("CLEAR", "ALERT", "AUTO-BLOCK") for current batch
+  - "risk_scores" : np.ndarray — final risk scores S(z) for current batch
+  - "p_rf"        : np.ndarray — passed through from input (for transparency and debugging)
+  - "s_if"        : np.ndarray — passed through from input (for transparency and debugging)
+  - "y_batch"     : pd.Series  — passed through from input
+  - "tx_meta"     : pd.DataFrame — passed through from input
+  - "batch_idx"   : int        — batch number
+  - "batch_size"  : int        — number of transactions in current batch
+  - "agent_state" : dict       — current {w, tau_alert, tau_block
+  - "start_time"  : float      — timestamp when processing of current batch started
+
+OUTPUT (AgentMessage payload):
+  - "action_report": dict       — summary of actions taken for current batch (e.g. number of transactions cleared, alerted, auto-blocked, average risk score, etc.)
+  - "decisions"    : np.ndarray — passed through from input (for transparency and debugging)
+  - "risk_scores"  : np.ndarray — passed through from input (for transparency and debugging)
+  - "p_rf"         : np.ndarray — passed through from input (for transparency and debugging)
+  - "s_if"         : np.ndarray — passed through from input (for transparency and debugging)
+  - "y_batch"      : pd.Series  — passed through from input
+  - "tx_meta"      : pd.DataFrame — passed through from input
+  - "batch_idx"    : int        — batch number
+  - "batch_size"   : int        — number of transactions in current batch
+  - "agent_state"  : dict       — current {w, tau_alert, tau_block
+  - "start_time"   : float      — timestamp when processing of current batch started
 """
 
 

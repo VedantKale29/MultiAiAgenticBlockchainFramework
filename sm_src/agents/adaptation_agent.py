@@ -11,19 +11,21 @@ ROLE IN PAPER:
    without human feedback."
 
 -----------------------------------------------------------------------
-τ = alert threshold, w = RF weight in fusion, Δ = block margin delta
+τ = alert threshold, w = RF weight in fusion, Δ = block margin delta i.e. how much higher block threshold is than alert threshold
 TARGET_PREC = 0.75, TARGET_REC = 0.80
 -----------------------------------------------------------------------
+τ = alert threshold, w = RF weight in fusion, Δ = block margin delta i.e. how much higher block threshold is than alert threshold
+by default, τ0 = 0.487, w0 = 0.70, Δ = 0.10
 
   THRESHOLD UPDATE:
-    if Rec < TARGET_REC  ->> τ = max(0, τ - η_τ)      [lower threshold ->> catch more fraud]  recall = TP / (TP + FN)
+    if Rec < TARGET_REC  ->> τ = max(0, τ - η_τ)      [lower threshold ->> catch more fraud]  recall = TP / (TP + FN) where η_τ = step size for tau, e.g. 0.02
     elif Prec < TARGET_PREC ->> τ = min(1, τ + η_τ)   [raise threshold ->> reduce false alarms] # precision = TP / (TP + FP)
     else                    ->> τ unchanged             [both targets met]
-    τ_block = clip(τ + Δ, 0, 1)
+    τ_block = clip(τ + Δ, 0, 1)  clip means to constrain the value between 0 and 1.... Example: if τ + Δ = 1.05, then τ_block would be set to 1.0; if τ + Δ = -0.02, then τ_block would be set to 0.0
 
   WEIGHT UPDATE:
-    if FN > TP AND mean(s_IF_TP) > mean(p_RF_TP):
-      w = clip(w - η_w, 0, 1)   [IF is explaining TPs better ->> trust IF more]
+    if FN > TP AND mean(s_IF_TP) > mean(p_RF_TP):    where s_IF_TP and p_RF_TP are the IF and RF scores for the TRUE POSITIVES in the batch
+      w = clip(w - η_w, 0, 1)   [IF is explaining TPs better ->> trust IF more]  where FN > TP means we're missing too many frauds, and if the IF scores for the TPs are higher than the RF scores, it suggests that the IF is doing a better job at identifying those frauds. So we decrease w to rely more on IF.
     elif FP > TP:
       w = clip(w + η_w, 0, 1)   [too many false alarms ->> trust RF more]
     else:

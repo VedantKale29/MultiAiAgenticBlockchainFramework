@@ -22,7 +22,7 @@ WHY MONITORING IS THE RIGHT PLACE FOR AWS LOGGING:
   of one batch: decisions, metrics, scores — all computed.
   It is the natural place to push data to AWS before adaptation happens.
 
-RECEIVES from ActionAgent:
+RECEIVES from ResponseAgent:
   action_report, decisions, risk_scores, p_rf, s_if,
   y_batch, batch_idx, batch_size, agent_state, start_time
 

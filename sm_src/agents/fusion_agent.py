@@ -14,6 +14,27 @@ ROLE IN PAPER:
     # tau_alert = threshold for ALERT = 0.5 in paper
     # tau_block = threshold for AUTO-BLOCK = 0.9 in paper
 NO AWS CALLS. Pure computation using current agent_state.
+
+READS from msg.payload:                                │   
+  │   p_rf  = msg.payload['p_rf']   → [0.92, 0.05, 0.78] │  where 0.92 is RF probability for transaction 1, 0.05 for transaction 2, 0.78 for transaction 3, etc.
+  │   s_if  = msg.payload['s_if']   → [0.88, 0.03, 0.71] 
+
+  INPUT  (AgentMessage payload):
+    - "p_rf"       : np.ndarray — RF probabilities for current batch
+    - "s_if"       : np.ndarray — IF scores for current batch
+    - "y_batch"    : pd.Series  — true labels for current batch (for
+    - "tx_meta"    : pd.DataFrame — transaction metadata for current batch
+    - "batch_idx"  : int        — batch number
+    - "batch_size" : int        — number of transactions in current batch
+    - "agent_state" : dict       — current {w, tau_alert, tau_block
+
+OUTPUT (AgentMessage payload):
+  - "risk_scores" : np.ndarray — final risk scores S(z) for current batch
+  - "decisions"   : np.ndarray — final decisions ("CLEAR", "ALERT", "AUTO-BLOCK") for current batch
+  - "p_rf"        : np.ndarray — passed through from input (for transparency and debugging)
+  - "s_if"        : np.ndarray — passed through from input (for transparency and debugging)
+  - "y_batch"     : pd.Series  — passed through from input
+  - "tx_meta"     : pd.DataFrame
 """
 
 import numpy as np
@@ -65,8 +86,8 @@ class FusionAgent(BaseAgent):
             payload={
                 "risk_scores" : risk_scores,
                 "decisions"   : decisions,
-                "p_rf"        : p_rf,
-                "s_if"        : s_if,
+                "p_rf"        : p_rf,             # for transparency and debugging
+                "s_if"        : s_if,              # for transparency and debugging
                 "y_batch"     : y_batch,
                 "tx_meta"     : tx_meta,
                 "batch_idx"   : batch_idx,
