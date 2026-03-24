@@ -49,11 +49,81 @@ INITIAL_WEIGHT_W0      = 0.70
 INITIAL_THRESHOLD_TAU0 = 0.487
 BLOCK_MARGIN_DELTA     = 0.10
 
-# Adaptation targets and step sizes
+# Original fixed step sizes (kept for reference / paper reproduction mode)
+STEP_SIZE_TAU = 0.02
+STEP_SIZE_W   = 0.05
+ 
 TARGET_PRECISION = 0.80
 TARGET_RECALL    = 0.80
-STEP_SIZE_TAU    = 0.02
-STEP_SIZE_W      = 0.05
+ 
+# ══════════════════════════════════════════════════════
+# PI CONTROLLER SETTINGS  (Extension #8 — v2)
+# ══════════════════════════════════════════════════════
+#
+# Set USE_PI_ADAPTATION = False to revert to the paper's fixed steps.
+USE_PI_ADAPTATION = True
+ 
+# ── TAU gains ────────────────────────────────────────────────────
+#
+# K_p derivation: K_p ≈ old_fixed_step / typical_gap
+#   old_fixed = 0.02,  typical recall gap ≈ 0.06
+#   → K_p = 0.02 / 0.06 ≈ 0.33  →  use 0.30 (conservative)
+#
+# v1 used 0.10 → produced steps of only 0.005 (4× too small)
+# v2 uses 0.30 → produces steps of ~0.018 (≈ paper's 0.02)
+#
+PI_KP_TAU = float(os.getenv("PI_KP_TAU", 0.30))   # ← v2 CHANGED (was 0.10)
+PI_KI_TAU = float(os.getenv("PI_KI_TAU", 0.02))   # ← v2 CHANGED (was 0.01)
+ 
+# ── WEIGHT gains ─────────────────────────────────────────────────
+PI_KP_W = float(os.getenv("PI_KP_W", 0.15))        # ← v2 CHANGED (was 0.12)
+PI_KI_W = float(os.getenv("PI_KI_W", 0.02))        # ← v2 CHANGED (was 0.01)
+ 
+# ── Anti-windup ───────────────────────────────────────────────────
+PI_MAX_INTEGRAL = float(os.getenv("PI_MAX_INTEGRAL", 1.0))
+ 
+# ── Tau step bounds ───────────────────────────────────────────────
+#
+# MIN_TAU_STEP = 0.015: floor ensures controller never stalls near
+#   target. Paper used 0.02 fixed; 0.015 gives headroom.
+# MAX_TAU_STEP = 0.10: allows slightly faster recovery on first batch
+#   where recall may be very low.
+#
+PI_MIN_TAU_STEP = float(os.getenv("PI_MIN_TAU_STEP", 0.015))  # ← v2 CHANGED (was 0.005)
+PI_MAX_TAU_STEP = float(os.getenv("PI_MAX_TAU_STEP", 0.10))   # ← v2 CHANGED (was 0.08)
+ 
+# ── Weight movement threshold ─────────────────────────────────────
+#
+# Gap difference must exceed this before w shifts.
+# 0.03 (lowered from 0.05): weight now responds when gaps differ by 3%,
+# giving more opportunity to leverage IF's recall sensitivity.
+#
+PI_WEIGHT_MOVE_THRESHOLD = float(os.getenv("PI_WEIGHT_MOVE_THRESHOLD", 0.03))  # ← v2 CHANGED (was 0.05)
+ 
+# ── Recall priority bias ──────────────────────────────────────────
+#
+# Encodes the asymmetric cost of FN vs FP in fraud detection.
+# In AML/blockchain: missing a fraud (FN) is far more costly than a
+# false alarm (FP). We encode a 1.5:1 cost ratio by default.
+#
+# How it works:
+#   rec_gap_w  = PI_RECALL_WEIGHT × rec_gap   →  bigger steps for recall
+#   prec_gap_w = PI_PREC_WEIGHT   × prec_gap  →  normal steps for precision
+#
+# The weighted gaps feed into BOTH tau and weight update logic.
+#
+# Tuning guide:
+#   Set both to 1.0 → symmetric mode (paper-equivalent behaviour)
+#   Increase RECALL_WEIGHT → more aggressive recall recovery
+#   Decrease RECALL_WEIGHT → more balanced precision/recall treatment
+#
+# Typical values by use case:
+#   AML / financial fraud detection:  1.5 – 3.0  (FN very costly)
+#   Spam filtering:                   1.0 – 1.2  (near symmetric)
+#   Medical diagnosis:                2.0 – 5.0  (missing disease = catastrophic)
+#
+PI_RECALL_WEIGHT = float(os.getenv("PI_RECALL_WEIGHT", 1.5))  # ← v2 NEW
+PI_PREC_WEIGHT   = float(os.getenv("PI_PREC_WEIGHT",   1.0))  # ← v2 NEW
 
 # Baseline model settings (XGBoost, KMeans, SVM)
 XGB_N_ESTIMATORS    = 250

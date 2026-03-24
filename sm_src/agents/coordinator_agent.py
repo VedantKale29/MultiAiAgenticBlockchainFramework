@@ -80,19 +80,31 @@ class CoordinatorAgent(BaseAgent):
         self.s3        = s3
 
         # Shared adaptive state
+        # Shared adaptive state
+        # tau_integral and w_integral are the PI accumulator terms added by
+        # Extension #8. They are initialised to 0.0 and carried forward
+        # through every batch by AdaptationAgent.
         self.agent_state = {
-            "w": config.INITIAL_WEIGHT_W0,
-            "tau_alert": config.INITIAL_THRESHOLD_TAU0,
-            "tau_block": float(
+            "w"            : config.INITIAL_WEIGHT_W0,
+            "tau_alert"    : config.INITIAL_THRESHOLD_TAU0,
+            "tau_block"    : float(
                 np.clip(
                     config.INITIAL_THRESHOLD_TAU0 + config.BLOCK_MARGIN_DELTA,
                     0.0,
                     1.0,
                 )
             ),
+            "tau_integral" : 0.0,   # PI integral accumulator for tau
+            "w_integral"   : 0.0,   # PI integral accumulator for w
         }
 
-        self.logger.info(f"[{self.name}] Initial state: {self.agent_state}")
+        self.logger.info(
+            f"[{self.name}] Initial state: "
+            f"w={self.agent_state['w']:.2f} "
+            f"tau={self.agent_state['tau_alert']:.3f} "
+            f"tau_b={self.agent_state['tau_block']:.3f} "
+            f"tau_integral=0.0 w_integral=0.0"
+        )
 
         # Worker agents
         self.perception_agent = PerceptionAgent(expected_features)
@@ -195,9 +207,11 @@ class CoordinatorAgent(BaseAgent):
                     self.agent_state.update(adapt_msg.payload["new_state"])
                     self.logger.info(
                         f"[{self.name}] State → "
-                        f"w={self.agent_state['w']:.2f} "
-                        f"tau={self.agent_state['tau_alert']:.3f} "
-                        f"tau_b={self.agent_state['tau_block']:.3f}"
+                        f"w={self.agent_state['w']:.3f} "
+                        f"tau={self.agent_state['tau_alert']:.4f} "
+                        f"tau_b={self.agent_state['tau_block']:.4f} "
+                        f"tau_int={self.agent_state.get('tau_integral', 0.0):.4f} "
+                        f"w_int={self.agent_state.get('w_integral', 0.0):.4f}"
                     )
                 else:
                     self.logger.error(

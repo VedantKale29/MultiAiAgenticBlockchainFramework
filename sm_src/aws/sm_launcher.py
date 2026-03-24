@@ -66,7 +66,7 @@ def launch_job(seed: int = 42, run_mode: str = "AGENTIC", wait: bool = False) ->
         return ""
 
     # Job name must be unique in SageMaker (no underscores allowed)
-    job_name = f"fraud-seddxwxyz{seed}-{run_mode.lower().replace('_', '-')}"
+    job_name = f"fraud-seddv5{seed}-{run_mode.lower().replace('_', '-')}"
 
     source_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     print(f"Source dir for SageMaker: {source_dir}")
