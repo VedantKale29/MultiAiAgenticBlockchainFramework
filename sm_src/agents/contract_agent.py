@@ -449,11 +449,22 @@ class ContractAgent(BaseAgent):
                 constructor_args = [threshold]
             # address_blocklist has no constructor args
 
+            # Estimate gas — use 2x estimate with 2_000_000 floor
+            try:
+                estimated = contract.constructor(*constructor_args).estimate_gas(
+                    {"from": deployer_addr}
+                )
+                gas_limit = max(2_000_000, int(estimated * 2))
+            except Exception:
+                gas_limit = 2_000_000
+
+            nonce = w3.eth.get_transaction_count(deployer_addr)
             tx = contract.constructor(*constructor_args).build_transaction({
-                "from": deployer_addr,
-                "gas": 500000,
+                "from":     deployer_addr,
+                "gas":      gas_limit,
                 "gasPrice": w3.to_wei("1", "gwei"),
-                "nonce": w3.eth.get_transaction_count(deployer_addr),
+                "nonce":    nonce,
+                "chainId":  31337,
             })
 
             if self.deployer_key:
@@ -475,9 +486,11 @@ class ContractAgent(BaseAgent):
                     reg_tx = self._registry.functions.register(
                         incident_bytes, deployed_address, template_key
                     ).build_transaction({
-                        "from": deployer_addr,
-                        "gas": 300000,
-                        "nonce": w3.eth.get_transaction_count(deployer_addr),
+                        "from":     deployer_addr,
+                        "gas":      500000,
+                        "gasPrice": w3.to_wei("1", "gwei"),
+                        "nonce":    w3.eth.get_transaction_count(deployer_addr),
+                        "chainId":  31337,
                     })
                     if self.deployer_key:
                         signed_reg = w3.eth.account.sign_transaction(reg_tx, self.deployer_key)
