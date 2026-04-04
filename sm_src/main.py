@@ -30,6 +30,22 @@ GRACEFUL DEGRADATION:
     - ExperimentTracker → saves local JSON (same as LocalExperimentTracker)
   Your local workflow is 100% unchanged.
 """
+import subprocess
+import sys
+
+required_packages = [
+    "chromadb",
+    "sentence-transformers",
+    "anthropic",      # Stage 3 — LLM reasoning in DecisionAgent
+    "web3",           # Stage 3 — contract deployment via Hardhat
+]
+
+for pkg in required_packages:
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", pkg, "--quiet"])
+    except Exception as e:
+        # Never crash pipeline if optional package fails
+        print(f"[main] Warning: could not install {pkg}: {e}")
 
 import os
 import json
@@ -218,15 +234,20 @@ def main():
     logging.info("  [8] CoordinatorAgent — orchestrates + S3 upload")
 
     coordinator = CoordinatorAgent(
-        rf_model          = rf_model,
-        if_model          = if_model,
-        expected_features = list(X_train.columns),
-        run_dir           = run_dir,
-        run_name          = run_name,
-        seed              = seed,
-        cw_logger         = cw_logger,   # ← AWS CloudWatch
-        tracker           = tracker,     # ← AWS SM Experiments
-        s3                = s3,          # ← AWS S3
+        rf_model           = rf_model,
+        if_model           = if_model,
+        expected_features  = list(X_train.columns),
+        run_dir            = run_dir,
+        run_name           = run_name,
+        seed               = seed,
+        cw_logger          = cw_logger,                        # ← AWS CloudWatch
+        tracker            = tracker,                          # ← AWS SM Experiments
+        s3                 = s3,                               # ← AWS S3
+        anthropic_api_key  = os.getenv("ANTHROPIC_API_KEY"),                    # ← Stage 3 LLM
+        hardhat_url        = os.getenv("HARDHAT_URL", "http://127.0.0.1:8545"), # ← Stage 3
+        registry_address   = os.getenv("CONTRACT_REGISTRY_ADDRESS"),            # ← Stage 3 registry
+        governance_address = os.getenv("GOVERNANCE_CONTRACT_ADDRESS"),          # ← Stage 4 governance
+        deployer_key       = os.getenv("HARDHAT_DEPLOYER_KEY"),                 # ← Stage 3/4 signing
     )
 
     # ──────────────────────────────────────────────────────────

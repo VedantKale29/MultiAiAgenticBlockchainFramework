@@ -1,18 +1,18 @@
 """
 aws/experiment_tracker.py
 ==========================
-EXPERIMENT TRACKER — replaces your existing LocalExperimentTracker.
+EXPERIMENT TRACKER -- replaces your existing LocalExperimentTracker.
 
 WHAT IT DOES:
   Tracks every run's parameters, per-batch metrics, and final results.
   Works in TWO modes depending on environment:
 
-  Mode 1 — SageMaker Experiments (when running in AWS):
+  Mode 1 -- SageMaker Experiments (when running in AWS):
     Metrics appear as live charts in the SageMaker Console.
     You can compare run_seed42 vs run_seed7 side-by-side visually.
     Results are stored permanently in AWS.
 
-  Mode 2 — Local JSON fallback (when running on your laptop):
+  Mode 2 -- Local JSON fallback (when running on your laptop):
     Same behavior as your original LocalExperimentTracker.
     Saves experiment_summary.json in the run directory.
 
@@ -62,7 +62,7 @@ class ExperimentTracker:
         self._sm_run  = None
         self._batch_metrics = []  # stores per-batch records
 
-        # Local data (always maintained — this is the fallback)
+        # Local data (always maintained -- this is the fallback)
         self._data = {
             "run_name"    : run_name,
             "seed"        : seed,

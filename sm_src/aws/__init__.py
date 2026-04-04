@@ -1,19 +1,19 @@
 """
 aws/s3_manager.py
 =================
-S3 MANAGER — uploads and downloads files from Amazon S3.
+S3 MANAGER -- uploads and downloads files from Amazon S3.
 
 WHAT IT DOES IN THIS PROJECT:
-  1. upload_dataset()      — upload CSV once before training starts
-  2. upload_run_results()  — upload everything in a run folder after training
-  3. download_dataset()    — download CSV at start of SageMaker job
+  1. upload_dataset()      -- upload CSV once before training starts
+  2. upload_rag_store()  -- upload everything in a run folder after training
+  3. download_dataset()    -- download CSV at start of SageMaker job
 
 WHEN EACH IS CALLED:
   From your laptop (before first run):
       python -c "from aws.s3_manager import S3Manager; S3Manager().upload_dataset('transaction_dataset.csv')"
 
   From CoordinatorAgent (after each run finishes):
-      s3.upload_run_results(run_dir="runs/run1", run_name="run_seed42_v1")
+      s3.upload_rag_store(run_dir="runs/run1", run_name="run_seed42_v1")
 
 GRACEFUL FALLBACK:
   If boto3 is not installed or no AWS credentials are configured,
@@ -48,7 +48,7 @@ class S3Manager:
             except Exception as e:
                 logging.warning(f"[S3Manager] Could not connect: {e} (running locally)")
         else:
-            logging.info("[S3Manager] boto3 not installed — running in local mode")
+            logging.info("[S3Manager] boto3 not installed -- running in local mode")
 
     # ─────────────────────────────────────────────────
     # UPLOAD
@@ -78,7 +78,7 @@ class S3Manager:
         logging.info(f"[S3Manager] Uploading dataset → s3://{self.bucket}/{s3_key}")
         return self.upload_file(local_csv, s3_key)
 
-    def upload_run_results(self, run_dir: str, run_name: str) -> dict:
+    def upload_rag_store(self, run_dir: str, run_name: str) -> dict:
         """
         Upload all output files from a completed run to S3.
         Called by CoordinatorAgent at the end of each run.

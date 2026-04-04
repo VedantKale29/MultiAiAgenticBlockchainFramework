@@ -1,0 +1,35 @@
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+boto3>=1.28.0
+sagemaker>3
+
+# logging / tracking
+tqdm>=4.66.0
+
+# optional but safe
+joblib>=1.3.0
+
+chromadb 
+sentence-transformers 
+mcp>1.0.0
+
+# Stage 3 -- LLM reasoning
+anthropic
+
+# Stage 3 -- Contract deployment
+web3
+
+# Stage 3 -- Static analysis (requires solc installed separately)
+slither-analyzer
+# Install solc: https://docs.soliditylang.org/en/latest/installing-solidity.html
+
+# Hardhat (Stage 3 contract deployment)
+npm install --save-dev hardhat
+npx hardhat node   # runs on http://127.0.0.1:8545
+
+# -e .

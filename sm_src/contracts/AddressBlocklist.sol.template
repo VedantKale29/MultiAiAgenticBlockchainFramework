@@ -1,0 +1,122 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+/**
+ * AddressBlocklist.sol
+ * =====================
+ * Pre-Audited Response Template -- Contract Templates RAG Collection
+ *
+ * STAGE 1 (Section 9.2): Indexed into the contract_templates ChromaDB
+ * collection by FraudKnowledgeAgent at startup. ContractAgent selects
+ * this template when the detected threat involves a specific attacker
+ * wallet (phishing, wash trading, known malicious address).
+ *
+ * PARAMETERISED VERSION:
+ *   ContractAgent replaces {{INCIDENT_ID}} before deployment, producing
+ *   a unique contract name per incident, e.g. AddressBlocklist_b7e4a12c.
+ *
+ * USE FOR (from RAG embedding text):
+ *   - Phishing attacks         (known malicious wallet)
+ *   - Wash trading             (circular transactions)
+ *   - Address-level laundering (repeated suspicious wallet)
+ *   - Any HIGH/MEDIUM anomaly with an identifiable attacker address
+ *
+ * MECHANISM:
+ *   Records the attacker wallet address in a mapping and emits a
+ *   BlockedAddress event. Off-chain systems (monitoring, compliance
+ *   tools) subscribe to this event for enforcement.
+ *   Also stores risk score and timestamp for audit purposes.
+ *
+ * MAPS TO FRAMEWORK:
+ *   Section 4.1 -- "autonomous contract selection and parameterisation"
+ *   RO5 -- deployed without human intervention
+ *   Section 9.4 -- on-chain tamper-evident audit trail of all actions
+ *
+ * PRE-AUDIT:
+ *   myth analyze contracts/AddressBlocklist.sol
+ *
+ * HOT-PATH VERIFICATION:
+ *   slither parameterised_instance.sol --json -
+ *
+ * DEPLOY (via ContractAgent + Web3.py):
+ *   constructor: no arguments needed
+ *   After deployment, ContractAgent calls:
+ *     blockAddress(attacker_address, risk_score * 1e18)
+ */
+
+contract AddressBlocklist_{{INCIDENT_ID}} {
+
+    address public immutable owner;
+
+    // Core blocklist state
+    mapping(address => bool)    public blocked;
+    mapping(address => uint256) public riskScores;  // scaled x1e18
+    mapping(address => uint256) public blockedAt;   // block.timestamp
+
+    uint256 public totalBlocked;
+
+    event BlockedAddress(
+        address indexed wallet,
+        uint256         riskScore,
+        uint256         timestamp
+    );
+    event RemovedAddress(
+        address indexed wallet,
+        uint256         timestamp
+    );
+
+    constructor() {
+        owner = msg.sender;
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not owner");
+        _;
+    }
+
+    /**
+     * Block an address permanently.
+     *
+     * @param wallet    Address of the attacker/suspicious wallet.
+     * @param riskScore Risk score scaled x1e18 (e.g. 0.95 → 950000000000000000).
+     *                  Passed from ActionPlan.parameters.threshold by ContractAgent.
+     *
+     * Safe to call multiple times -- idempotent (already-blocked addresses
+     * are updated but not double-counted in totalBlocked).
+     */
+    function blockAddress(
+        address wallet,
+        uint256 riskScore
+    ) external onlyOwner {
+        require(wallet != address(0), "Cannot block zero address");
+        if (!blocked[wallet]) {
+            totalBlocked += 1;
+        }
+        blocked[wallet]    = true;
+        riskScores[wallet] = riskScore;
+        blockedAt[wallet]  = block.timestamp;
+        emit BlockedAddress(wallet, riskScore, block.timestamp);
+    }
+
+    /**
+     * Remove a wallet from the blocklist (owner only -- human override).
+     */
+    function removeAddress(address wallet) external onlyOwner {
+        require(blocked[wallet], "Address not blocked");
+        blocked[wallet] = false;
+        if (totalBlocked > 0) totalBlocked -= 1;
+        emit RemovedAddress(wallet, block.timestamp);
+    }
+
+    function isBlocked(address wallet) external view returns (bool) {
+        return blocked[wallet];
+    }
+
+    function getRiskScore(address wallet) external view returns (uint256) {
+        return riskScores[wallet];
+    }
+
+    function getBlockedAt(address wallet) external view returns (uint256) {
+        return blockedAt[wallet];
+    }
+}

@@ -1,7 +1,7 @@
 """
 agents/if_agent.py
 ==================
-AGENT 3: IFAgent — unsupervised anomaly detector → s_IF(z)
+AGENT 3: IFAgent -- unsupervised anomaly detector → s_IF(z)
 
 if agent called by rf agent, receives:
 - p_rf: RF probability of fraud (from RFAgent)

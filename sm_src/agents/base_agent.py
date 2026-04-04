@@ -1,7 +1,7 @@
 """
 base_agent.py
 =============
-The BASE AGENT — the blueprint that every other agent inherits from.
+The BASE AGENT -- the blueprint that every other agent inherits from.
 
 WHY DO WE NEED THIS?
 --------------------
@@ -36,7 +36,7 @@ from  logger import logging
 
 
 # ─────────────────────────────────────────────────────────────
-# AgentMessage — the "envelope" passed between agents
+# AgentMessage -- the "envelope" passed between agents
 # ─────────────────────────────────────────────────────────────
 @dataclass
 class AgentMessage:
@@ -57,7 +57,7 @@ class AgentMessage:
 
 
 # ─────────────────────────────────────────────────────────────
-# BaseAgent — the parent class every agent inherits from
+# BaseAgent -- the parent class every agent inherits from
 # ─────────────────────────────────────────────────────────────
 class BaseAgent:
     """

@@ -1,0 +1,18 @@
+Avg min between sent tnx
+Avg min between received tnx
+Time Diff between first and last (Mins)
+Sent tnx
+Received Tnx
+Number of Created Contracts
+Total ERC20 tnxs
+min value received
+max value received
+avg val received
+min val sent
+max val sent
+avg val sent
+ERC20 min val sent
+ERC20 max val sent
+ERC20 avg val sent
+Unique Received From Addresses
+Unique Sent To Addresses

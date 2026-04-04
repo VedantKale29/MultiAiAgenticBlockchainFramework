@@ -1,0 +1,100 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+/**
+ * CircuitBreaker.sol
+ * ===================
+ * Pre-Audited Response Template -- Contract Templates RAG Collection
+ *
+ * STAGE 1 (Section 9.2): Indexed into the contract_templates ChromaDB
+ * collection by FraudKnowledgeAgent at startup. ContractAgent queries
+ * this collection by cosine similarity to select the best response for
+ * a detected threat -- no human decides which template to use.
+ *
+ * PARAMETERISED VERSION:
+ *   When ContractAgent deploys this template it replaces {{INCIDENT_ID}}
+ *   with the first 8 characters of the SHA-256 incident hash, producing
+ *   a unique contract name per incident, e.g. CircuitBreaker_a3f91c20.
+ *
+ * USE FOR (from RAG embedding text):
+ *   - Flash loan attacks      (rapid single-block drain)
+ *   - Reentrancy attacks      (repeated external call exploit)
+ *   - Price oracle manipulation
+ *   - Any HIGH/CRITICAL anomaly requiring immediate protocol halt
+ *
+ * MECHANISM:
+ *   Calls pause() on the target vulnerable protocol contract.
+ *   IPausable assumes the target implements OpenZeppelin Pausable.
+ *   Single-use: activate() can only be called once (idempotent).
+ *
+ * MAPS TO FRAMEWORK:
+ *   Section 4.1 -- "autonomous contract selection and parameterisation"
+ *   RO5 -- deployed without human intervention within 12-second window
+ *   Citation [9] -- Slither verifies parameterised instance in hot path
+ *
+ * PRE-AUDIT:
+ *   Run with Mythril (offline, once) before adding to RAG:
+ *     myth analyze contracts/CircuitBreaker.sol
+ *
+ * HOT-PATH VERIFICATION:
+ *   Slither runs on parameterised instance at deploy time (<2 seconds):
+ *     slither parameterised_instance.sol --json -
+ *
+ * DEPLOY (via ContractAgent + Web3.py):
+ *   constructor argument: _target = address of vulnerable pool/protocol
+ */
+
+interface IPausable {
+    function pause() external;
+}
+
+contract CircuitBreaker_{{INCIDENT_ID}} {
+
+    address public immutable owner;
+    address public immutable target;
+    bool    public activated;
+
+    event CircuitBreakerActivated(
+        address indexed target,
+        address indexed activatedBy,
+        uint256         timestamp
+    );
+
+    /**
+     * @param _target Address of the vulnerable contract to pause.
+     *                Must implement IPausable (OpenZeppelin Pausable).
+     */
+    constructor(address _target) {
+        require(_target != address(0), "Invalid target address");
+        owner  = msg.sender;
+        target = _target;
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not owner");
+        _;
+    }
+
+    /**
+     * Activate the circuit breaker.
+     * Calls pause() on the target to halt all protocol activity.
+     * Can only be called once -- idempotent after first activation.
+     *
+     * Called autonomously by ContractAgent via Web3.py after deployment.
+     * The pool (NaiveReceiverLenderPool) then rejects all flash loan calls.
+     */
+    function activate() external onlyOwner {
+        require(!activated, "Circuit breaker already activated");
+        activated = true;
+        IPausable(target).pause();
+        emit CircuitBreakerActivated(target, msg.sender, block.timestamp);
+    }
+
+    function isActivated() external view returns (bool) {
+        return activated;
+    }
+
+    function getTarget() external view returns (address) {
+        return target;
+    }
+}

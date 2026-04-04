@@ -28,7 +28,7 @@ def plot_figure_2(df, output_dir, run_name):
     plt.plot(df["batch"], df["recall"], marker="s", label="Recall")
     plt.plot(df["batch"], df["f1"], marker="^", label="F1")
 
-    plt.title(f"{run_name} — Batch Metrics")
+    plt.title(f"{run_name} -- Batch Metrics")
     plt.xlabel("Batch")
     plt.ylabel("Score")
 
@@ -65,7 +65,7 @@ def plot_figure_3(df, output_dir, run_name):
         marker="o",
     )
 
-    plt.title(f"{run_name} — Threshold")
+    plt.title(f"{run_name} -- Threshold")
     plt.xlabel("Batch")
     plt.ylabel("tau_alert")
 
@@ -100,7 +100,7 @@ def plot_figure_4(df, output_dir, run_name):
         marker="o",
     )
 
-    plt.title(f"{run_name} — RF Weight")
+    plt.title(f"{run_name} -- RF Weight")
     plt.xlabel("Batch")
     plt.ylabel("w")
 

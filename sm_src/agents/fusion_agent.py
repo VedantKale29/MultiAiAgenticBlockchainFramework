@@ -1,7 +1,7 @@
 """
 agents/fusion_agent.py
 ======================
-AGENT 4: FusionAgent — Cognition Layer
+AGENT 4: FusionAgent -- Cognition Layer
 
 ROLE IN PAPER:
   S(z) = w * p_RF(z) + (1-w) * s_IF(z)
@@ -20,20 +20,20 @@ READS from msg.payload:                                │
   │   s_if  = msg.payload['s_if']   → [0.88, 0.03, 0.71] 
 
   INPUT  (AgentMessage payload):
-    - "p_rf"       : np.ndarray — RF probabilities for current batch
-    - "s_if"       : np.ndarray — IF scores for current batch
-    - "y_batch"    : pd.Series  — true labels for current batch (for
-    - "tx_meta"    : pd.DataFrame — transaction metadata for current batch
-    - "batch_idx"  : int        — batch number
-    - "batch_size" : int        — number of transactions in current batch
-    - "agent_state" : dict       — current {w, tau_alert, tau_block
+    - "p_rf"       : np.ndarray -- RF probabilities for current batch
+    - "s_if"       : np.ndarray -- IF scores for current batch
+    - "y_batch"    : pd.Series  -- true labels for current batch (for
+    - "tx_meta"    : pd.DataFrame -- transaction metadata for current batch
+    - "batch_idx"  : int        -- batch number
+    - "batch_size" : int        -- number of transactions in current batch
+    - "agent_state" : dict       -- current {w, tau_alert, tau_block
 
 OUTPUT (AgentMessage payload):
-  - "risk_scores" : np.ndarray — final risk scores S(z) for current batch
-  - "decisions"   : np.ndarray — final decisions ("CLEAR", "ALERT", "AUTO-BLOCK") for current batch
-  - "p_rf"        : np.ndarray — passed through from input (for transparency and debugging)
-  - "s_if"        : np.ndarray — passed through from input (for transparency and debugging)
-  - "y_batch"     : pd.Series  — passed through from input
+  - "risk_scores" : np.ndarray -- final risk scores S(z) for current batch
+  - "decisions"   : np.ndarray -- final decisions ("CLEAR", "ALERT", "AUTO-BLOCK") for current batch
+  - "p_rf"        : np.ndarray -- passed through from input (for transparency and debugging)
+  - "s_if"        : np.ndarray -- passed through from input (for transparency and debugging)
+  - "y_batch"     : pd.Series  -- passed through from input
   - "tx_meta"     : pd.DataFrame
 """
 

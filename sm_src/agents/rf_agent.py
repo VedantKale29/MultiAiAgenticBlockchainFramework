@@ -1,7 +1,7 @@
 """
 agents/rf_agent.py
 ==================
-AGENT 2: RFAgent — supervised detector → p_RF(z)
+AGENT 2: RFAgent -- supervised detector → p_RF(z)
 
 ROLE IN PAPER:
   "Random Forest outputs the probability of a transaction being fraudulent."

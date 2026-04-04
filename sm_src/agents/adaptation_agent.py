@@ -58,18 +58,18 @@ With AdaptationAgent:
 
 INPUT  (AgentMessage payload):
   - "p_rf_tp"     : np.ndarray > RF scores for True Positives
-  - "s_if_tp"     : np.ndarray — IF scores for True Positives
-  - "tp"          : int        — True Positive count
-  - "fp"          : int        — False Positive count
-  - "fn"          : int        — False Negative count
-  - "prec"        : float      — batch precision
-  - "rec"         : float      — batch recall
-  - "batch_idx"   : int        — batch number
-  - "agent_state" : dict       — current {w, tau_alert, tau_block}
+  - "s_if_tp"     : np.ndarray -- IF scores for True Positives
+  - "tp"          : int        -- True Positive count
+  - "fp"          : int        -- False Positive count
+  - "fn"          : int        -- False Negative count
+  - "prec"        : float      -- batch precision
+  - "rec"         : float      -- batch recall
+  - "batch_idx"   : int        -- batch number
+  - "agent_state" : dict       -- current {w, tau_alert, tau_block}
 
 OUTPUT (AgentMessage payload):
-  - "new_state"   : dict       — updated {w, tau_alert, tau_block}
-  - "batch_idx"   : int        — passed through
+  - "new_state"   : dict       -- updated {w, tau_alert, tau_block}
+  - "batch_idx"   : int        -- passed through
 
 AWS INTEGRATION HERE:
   After updating tau and w, logs the adaptation event to CloudWatch.
@@ -139,7 +139,7 @@ class AdaptationAgent(BaseAgent):
                 f"→ RAISE tau: {old_tau:.3f} → {new_tau:.3f}"
             )
         else:
-            self.logger.info(f"[{self.name}] Both targets met — tau unchanged at {old_tau:.3f}")
+            self.logger.info(f"[{self.name}] Both targets met -- tau unchanged at {old_tau:.3f}")
 
         new_tau_block = float(np.clip(new_tau + self.delta, 0.0, 1.0))
 
@@ -151,7 +151,7 @@ class AdaptationAgent(BaseAgent):
         w_reason = "conditions_not_triggered"
 
         if tp == 0:
-            self.logger.info(f"[{self.name}] No TP — weight unchanged at w={old_w:.2f}")
+            self.logger.info(f"[{self.name}] No TP -- weight unchanged at w={old_w:.2f}")
             w_reason = "no_true_positives"
         else:
             mean_rf_tp = float(np.mean(p_rf_tp)) if len(p_rf_tp) > 0 else 0.0
@@ -176,7 +176,7 @@ class AdaptationAgent(BaseAgent):
                 self.logger.info(f"[{self.name}] Weight unchanged at w={old_w:.2f}")
 
         # ════════════════════════════════════════════════════════
-        # AWS INTEGRATION — Log adaptation event to CloudWatch
+        # AWS INTEGRATION -- Log adaptation event to CloudWatch
         # ════════════════════════════════════════════════════════
         # This creates a searchable record in CloudWatch each time
         # the agent changes its tau or w. You can filter for:

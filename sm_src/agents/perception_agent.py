@@ -22,19 +22,19 @@ When given a batch of raw transactions (X_batch), this agent:
   4. Passes the clean feature matrix forward as the "state vector z"
 
 INPUT  (AgentMessage payload):
-  - "X_batch"     : pd.DataFrame  — raw feature batch
-  - "y_batch"     : pd.Series     — true labels (for monitoring)
-  - "batch_idx"   : int           — which batch number we're on
-  - "agent_state" : dict          — current {w, tau_alert, tau_block}
-  - "start_time"  : float         — batch start timestamp
+  - "X_batch"     : pd.DataFrame  -- raw feature batch
+  - "y_batch"     : pd.Series     -- true labels (for monitoring)
+  - "batch_idx"   : int           -- which batch number we're on
+  - "agent_state" : dict          -- current {w, tau_alert, tau_block}
+  - "start_time"  : float         -- batch start timestamp
 
 OUTPUT (AgentMessage payload):
-  - "X_batch"     : pd.DataFrame  — validated, clean feature matrix (state z)
-  - "y_batch"     : pd.Series     — true labels passed through
-  - "batch_idx"   : int           — batch number passed through
-  - "batch_size"  : int           — number of transactions in this batch
-  - "agent_state" : dict          — passed through
-  - "start_time"  : float         — passed through
+  - "X_batch"     : pd.DataFrame  -- validated, clean feature matrix (state z)
+  - "y_batch"     : pd.Series     -- true labels passed through
+  - "batch_idx"   : int           -- batch number passed through
+  - "batch_size"  : int           -- number of transactions in this batch
+  - "agent_state" : dict          -- passed through
+  - "start_time"  : float         -- passed through
 """
 
 import numpy as np

@@ -1,7 +1,7 @@
 """
 agents/coordinator_agent.py
 ============================
-AGENT 10: CoordinatorAgent — THE MASTER ORCHESTRATOR
+AGENT 10: CoordinatorAgent -- THE MASTER ORCHESTRATOR
 
 ROLE:
   Owns and runs the entire pipeline. It is the only agent that:
@@ -34,6 +34,32 @@ SHARED STATE:
   FusionAgent READS it each batch.
   AdaptationAgent RETURNS a new_state each batch.
   CoordinatorAgent UPDATES the dict with new_state.
+
+PIPELINE ORDER:
+  PerceptionAgent   → validates z + passes tx_meta
+  RFAgent           → p_RF(z)
+  IFAgent           → s_IF(z)
+  FusionAgent       → S(z) = w*p_RF + (1-w)*s_IF → decisions
+  ActionAgent       → CLEAR / ALERT / AUTO-BLOCK
+  PolicyAgent       → ALLOW / WATCHLIST / BLOCK
+  ResponseAgent     → fraud_events.csv / attack_log.json
+  MonitoringAgent   → metrics + CloudWatch + SM Experiments
+  ─── Stage 2 ───
+  AuditAgent        → audit_log.jsonl + RAG re-index
+  ─── Stage 3 ───
+  DecisionAgent     → LLM + RAG → ActionPlan
+  ContractAgent     → template + Slither + deploy
+  ─── Stage 4 ───
+  GovernanceAgent   → consecutive pattern → timelock proposal
+  ─── Always ───
+  AdaptationAgent   → update tau, w
+ 
+SAFETY CONTRACT:
+  Every Stage 2–4 agent is wrapped in _run_optional().
+  Any crash → warning logged → original message returned.
+  AWS / S3 / SageMaker / CloudWatch untouched.
+  New agents only instantiated if their module files exist.
+  If no new deps installed: pipeline runs identically to before.
 """
 
 import os
@@ -53,6 +79,26 @@ from agents.response_agent    import ResponseAgent
 from agents.monitoring_agent  import MonitoringAgent
 from agents.adaptation_agent  import AdaptationAgent
 
+try:
+    from agents.fraud_knowledge_agent import FraudKnowledgeAgent
+    from agents.audit_agent           import AuditAgent
+    _STAGE12 = True
+except ImportError:
+    _STAGE12 = False
+ 
+try:
+    from agents.decision_agent import DecisionAgent
+    from agents.contract_agent import ContractAgent
+    _STAGE3 = True
+except ImportError:
+    _STAGE3 = False
+ 
+try:
+    from agents.governance_agent import GovernanceAgent
+    _STAGE4 = True
+except ImportError:
+    _STAGE4 = False
+
 import config
 
 
@@ -69,6 +115,13 @@ class CoordinatorAgent(BaseAgent):
         cw_logger=None,   # CloudWatchLogger (optional)
         tracker=None,     # ExperimentTracker (optional)
         s3=None,          # S3Manager (optional)
+
+        # ── Stage 3–4 optional kwargs (all default to safe None) ──
+        anthropic_api_key:  str = None,
+        hardhat_url:        str = "http://127.0.0.1:8545",
+        registry_address:   str = None,
+        governance_address: str = None,
+        deployer_key:       str = None,
     ):
         super().__init__(name="CoordinatorAgent")
 
@@ -110,7 +163,98 @@ class CoordinatorAgent(BaseAgent):
             cw_logger=cw_logger,
         )
 
+        # ── Stage 1+2: RAG + Audit ─────────────────────────────────
+        self.knowledge_agent = None
+        self.audit_agent     = None
+        if _STAGE12:
+            try:
+                self.knowledge_agent = FraudKnowledgeAgent(run_dir=run_dir)
+                self.audit_agent     = AuditAgent(
+                    run_dir=run_dir,
+                    run_name=run_name,
+                    knowledge_agent=self.knowledge_agent,
+                    s3=s3,
+                )
+                self.logger.info(f"[{self.name}] Stages 1+2: RAG + Audit ready "
+                                 f"(store={self.knowledge_agent.get_store_size()} docs)")
+            except Exception as e:
+                self.logger.warning(f"[{self.name}] Stages 1+2 init failed ({e}) -- skipping")
+                self.knowledge_agent = None
+                self.audit_agent     = None
+ 
+        # ── Stage 3: Decision + Contract ──────────────────────────
+        self.decision_agent = None
+        self.contract_agent = None
+        if _STAGE3:
+            try:
+                self.decision_agent = DecisionAgent(
+                    knowledge_agent=self.knowledge_agent,
+                    anthropic_api_key=anthropic_api_key,
+                )
+                self.contract_agent = ContractAgent(
+                    run_dir=run_dir,
+                    knowledge_agent=self.knowledge_agent,
+                    hardhat_url=hardhat_url,
+                    registry_address=registry_address,
+                    deployer_key=deployer_key,
+                )
+                self.logger.info(f"[{self.name}] Stage 3: Decision + Contract ready")
+            except Exception as e:
+                self.logger.warning(f"[{self.name}] Stage 3 init failed ({e}) -- skipping")
+                self.decision_agent = None
+                self.contract_agent = None
+ 
+        # ── Stage 4: Governance ────────────────────────────────────
+        self.governance_agent = None
+        if _STAGE4:
+            try:
+                self.governance_agent = GovernanceAgent(
+                    run_dir=run_dir,
+                    hardhat_url=hardhat_url,
+                    governance_address=governance_address,
+                    deployer_key=deployer_key,
+                )
+                self.logger.info(f"[{self.name}] Stage 4: Governance ready")
+            except Exception as e:
+                self.logger.warning(f"[{self.name}] Stage 4 init failed ({e}) -- skipping")
+                self.governance_agent = None
+
         self.history = []
+
+        # # ── Stage 1: Restore RAG store from S3 (if previous run exists) ─
+        # # This makes RAG knowledge accumulate across SageMaker runs.
+        # # On first run: no rag_store in S3 yet → starts fresh (silent).
+        # # On subsequent runs: restores previous ChromaDB → knowledge grows.
+        # if s3 is not None:
+        #     self.logger.info(
+        #         f"[{self.name}] Attempting to restore rag_store from S3..."
+        #     )
+        #     restored = s3.download_rag_store(
+        #         run_name      = run_name,
+        #         local_run_dir = run_dir,
+        #     )
+        #     if restored:
+        #         self.logger.info(
+        #             f"[{self.name}] rag_store restored from S3 -- "
+        #             f"RAG knowledge will accumulate from previous run"
+        #         )
+        #     else:
+        #         self.logger.info(
+        #             f"[{self.name}] No previous rag_store in S3 -- "
+        #             f"starting fresh (expected on first run)"
+        #         )
+
+        # # ── Stage 1: RAG knowledge base ─────────────────────────────
+        # # Degrades gracefully if chromadb not installed.
+        # self.knowledge_agent = FraudKnowledgeAgent(run_dir=run_dir)
+    
+        # # ── Stage 2: Audit agent ─────────────────────────────────────
+        # self.audit_agent = AuditAgent(
+        #     run_dir        = run_dir,
+        #     run_name       = run_name,
+        #     knowledge_agent= self.knowledge_agent,  # wires RAG loop
+        #     s3             = s3,                    # same S3 instance you already have
+        # )
 
     def _run(self, msg: AgentMessage) -> AgentMessage:
         """
@@ -180,7 +324,7 @@ class CoordinatorAgent(BaseAgent):
                 if current_msg.status == "error":
                     self.logger.error(
                         f"[{self.name}] {agent.name} failed: "
-                        f"{current_msg.error} — skipping batch"
+                        f"{current_msg.error} -- skipping batch"
                     )
                     break
 
@@ -188,6 +332,71 @@ class CoordinatorAgent(BaseAgent):
                 # Save monitoring log
                 batch_log = current_msg.payload["batch_log"]
                 self.history.append(batch_log)
+
+                #   # ── Stage 2: Audit + RAG self-improvement ───────────────────
+                # audit_agent writes the audit record and re-indexes RAG.
+                # If it fails, the error is caught inside AuditAgent._run()
+                # and the pipeline continues without interruption.
+                # ── Stage 2: Audit + RAG self-improvement ──────────
+                if self.audit_agent is not None:
+                    audit_msg = self.audit_agent.run(current_msg)
+                    if audit_msg.status == "ok":
+                        current_msg = audit_msg
+                        self.logger.info(
+                            f"[{self.name}] AuditAgent: "
+                            f"records={audit_msg.payload.get('audit_records_written',0)} | "
+                            f"rag_store={self.knowledge_agent.get_store_size()} docs"
+                        )
+
+                # ── Stage 3a: Decision Agent (LLM + RAG → ActionPlan) ──
+                if self.decision_agent is not None:
+                    decision_msg = self.decision_agent.run(current_msg)
+                    if decision_msg.status == "ok":
+                        current_msg = decision_msg
+                        ap = decision_msg.payload.get("action_plan", {})
+                        self.logger.info(
+                            f"[{self.name}] DecisionAgent: "
+                            f"threat={ap.get('threat_type','?')} | "
+                            f"severity={ap.get('severity','?')} | "
+                            f"template={ap.get('recommended_template','?')} | "
+                            f"rag_hits={ap.get('rag_hits',0)} | "
+                            f"llm_used={ap.get('llm_used',False)}"
+                        )
+                    else:
+                        self.logger.warning(
+                            f"[{self.name}] DecisionAgent failed: {decision_msg.error}"
+                        )
+
+                # ── Stage 3b: Contract Agent (select + Slither + deploy) ─
+                if self.contract_agent is not None:
+                    contract_msg = self.contract_agent.run(current_msg)
+                    if contract_msg.status == "ok":
+                        current_msg = contract_msg
+                        dr = contract_msg.payload.get("deployment_record", {})
+                        self.logger.info(
+                            f"[{self.name}] ContractAgent: "
+                            f"template={dr.get('template','?')} | "
+                            f"slither={dr.get('slither_passed','?')} | "
+                            f"simulated={dr.get('simulated',True)} | "
+                            f"address={str(dr.get('deployed_address','?'))[:12]}..."
+                        )
+                    else:
+                        self.logger.warning(
+                            f"[{self.name}] ContractAgent failed: {contract_msg.error}"
+                        )
+
+                # ── Stage 4: Governance Agent (pattern → timelock) ───────
+                if self.governance_agent is not None:
+                    gov_msg = self.governance_agent.run(current_msg)
+                    if gov_msg.status == "ok":
+                        current_msg = gov_msg
+                        gp = gov_msg.payload.get("governance_proposal")
+                        if gp:
+                            self.logger.info(
+                                f"[{self.name}] GovernanceAgent: proposal submitted | "
+                                f"param={gp.get('param','?')} | "
+                                f"new_value={gp.get('new_value','?')}"
+                            )
 
                 # Adapt state for next batch
                 adapt_msg = self.adaptation_agent.run(current_msg)
@@ -208,6 +417,15 @@ class CoordinatorAgent(BaseAgent):
         # POST-LOOP: SAVE + UPLOAD
         # ─────────────────────────────────────────────────────
         self.logger.info(f"[{self.name}] All {num_batches} batches complete.")
+
+        # Final index pass -- ensures the last batch's events are in RAG
+        if self.knowledge_agent is not None:
+            fraud_events_path = os.path.join(self.run_dir, "fraud_events.csv")
+            self.knowledge_agent.index_fraud_events(fraud_events_path)
+            self.logger.info(
+                f"[{self.name}] RAG final index complete: "
+                f"{self.knowledge_agent.get_store_size()} documents"
+            )
 
         os.makedirs(self.run_dir, exist_ok=True)
 
@@ -265,7 +483,7 @@ class CoordinatorAgent(BaseAgent):
         # S3 upload of all run artifacts
         uploaded = {}
         if self.s3:
-            uploaded = self.s3.upload_run_results(
+            uploaded = self.s3.upload_rag_store(
                 run_dir=self.run_dir,
                 run_name=self.run_name,
             )

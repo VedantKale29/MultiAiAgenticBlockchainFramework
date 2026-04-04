@@ -1,0 +1,166 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+/**
+ * RateLimiter.sol
+ * ================
+ * Pre-Audited Response Template -- Contract Templates RAG Collection
+ *
+ * STAGE 1 (Section 9.2): Indexed into the contract_templates ChromaDB
+ * collection by FraudKnowledgeAgent at startup. ContractAgent selects
+ * this template when the detected threat involves sustained high volume
+ * or when a novel attack variant is detected (closest-match by RAG
+ * cosine similarity -- the novel_variant Stage 5 scenario).
+ *
+ * PARAMETERISED VERSION:
+ *   ContractAgent replaces {{INCIDENT_ID}} before deployment, producing
+ *   a unique contract name per incident, e.g. RateLimiter_c9d2e45f.
+ *
+ * USE FOR (from RAG embedding text):
+ *   - Sandwich attacks         (buy-target-sell in same block)
+ *   - MEV / front-running      (high-volume block manipulation)
+ *   - Novel variant attacks    (selected by RAG similarity -- Stage 5)
+ *   - Gradual drain patterns   (repeated medium-volume transactions)
+ *   - Any MEDIUM anomaly with sustained high transaction volume
+ *
+ * MECHANISM:
+ *   Tracks cumulative transaction volume per block. Rejects calls
+ *   (returns false) when volume exceeds maxVolumePerBlock.
+ *   The limit can be updated by the owner to adapt to new thresholds
+ *   learned from subsequent governance proposals.
+ *
+ * STAGE 5 RELEVANCE:
+ *   The novel_variant scenario (cross-protocol sandwich attack, not in
+ *   RAG corpus) is expected to select rate_limiter by cosine similarity.
+ *   This is the key generalisation test: the system handles unknown
+ *   threats by finding the closest-matching known response pattern.
+ *
+ * MAPS TO FRAMEWORK:
+ *   Section 4.1 -- "autonomous contract selection and parameterisation"
+ *   RO5 -- deployed without human intervention
+ *   Section 9.2 Stage 5 -- "novel variant not in RAG corpus; system
+ *     selects closest-matching template by RAG similarity"
+ *
+ * PRE-AUDIT:
+ *   myth analyze contracts/RateLimiter.sol
+ *
+ * HOT-PATH VERIFICATION:
+ *   slither parameterised_instance.sol --json -
+ *
+ * DEPLOY (via ContractAgent + Web3.py):
+ *   constructor argument: _maxVolumeWei = volume limit in wei
+ *   Example: 50 ETH = 50 * 10**18 = 50000000000000000000
+ *   Passed from ActionPlan.parameters.threshold by ContractAgent.
+ */
+
+contract RateLimiter_{{INCIDENT_ID}} {
+
+    address public immutable owner;
+
+    /// Maximum ETH volume allowed per block (in wei)
+    uint256 public maxVolumePerBlock;
+
+    // Per-block tracking (resets automatically on each new block)
+    uint256 private _currentBlock;
+    uint256 private _currentBlockVolume;
+
+    event VolumeExceeded(
+        uint256 indexed blockNum,
+        uint256         cumulativeVolume,
+        uint256         limit
+    );
+    event LimitUpdated(
+        uint256 oldLimit,
+        uint256 newLimit,
+        uint256 timestamp
+    );
+    event VolumeRecorded(
+        uint256 indexed blockNum,
+        uint256         cumulativeVolume,
+        uint256         limit,
+        bool            allowed
+    );
+
+    /**
+     * @param _maxVolumeWei Maximum ETH volume per block in wei.
+     *                      Example: 50 ETH = 50 * 10**18
+     */
+    constructor(uint256 _maxVolumeWei) {
+        require(_maxVolumeWei > 0, "Volume limit must be positive");
+        owner             = msg.sender;
+        maxVolumePerBlock = _maxVolumeWei;
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not owner");
+        _;
+    }
+
+    /**
+     * Record transaction volume for the current block.
+     *
+     * @param amountWei ETH amount of the transaction in wei.
+     * @return allowed  True if within limit; false if volume exceeded.
+     *
+     * Automatically resets the per-block counter when block.number changes.
+     * Called by the monitoring system for every high-risk transaction.
+     */
+    function recordVolume(
+        uint256 amountWei
+    ) external onlyOwner returns (bool allowed) {
+        // New block -- reset counter
+        if (block.number > _currentBlock) {
+            _currentBlock       = block.number;
+            _currentBlockVolume = 0;
+        }
+
+        _currentBlockVolume += amountWei;
+        allowed = (_currentBlockVolume <= maxVolumePerBlock);
+
+        if (!allowed) {
+            emit VolumeExceeded(
+                block.number,
+                _currentBlockVolume,
+                maxVolumePerBlock
+            );
+        }
+
+        emit VolumeRecorded(
+            block.number,
+            _currentBlockVolume,
+            maxVolumePerBlock,
+            allowed
+        );
+
+        return allowed;
+    }
+
+    /**
+     * Update the volume limit (governance-controlled via GovernanceContract).
+     * Called by the GovernanceAgent after a TimeloController proposal executes.
+     */
+    function updateLimit(uint256 newLimitWei) external onlyOwner {
+        require(newLimitWei > 0, "Limit must be positive");
+        uint256 old       = maxVolumePerBlock;
+        maxVolumePerBlock = newLimitWei;
+        emit LimitUpdated(old, newLimitWei, block.timestamp);
+    }
+
+    // ── View functions ───────────────────────────────────────
+
+    function getCurrentBlockVolume() external view returns (uint256) {
+        if (block.number > _currentBlock) return 0;
+        return _currentBlockVolume;
+    }
+
+    function isWithinLimit(uint256 additionalWei) external view returns (bool) {
+        uint256 vol = (block.number > _currentBlock)
+            ? additionalWei
+            : _currentBlockVolume + additionalWei;
+        return vol <= maxVolumePerBlock;
+    }
+
+    function getLimit() external view returns (uint256) {
+        return maxVolumePerBlock;
+    }
+}

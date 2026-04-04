@@ -1,7 +1,7 @@
 """
 aws/cloudwatch_logger.py
 ========================
-CLOUDWATCH LOGGER — logs batch metrics to AWS CloudWatch.
+CLOUDWATCH LOGGER -- logs batch metrics to AWS CloudWatch.
 
 HOW CLOUDWATCH LOGGING WORKS IN SAGEMAKER:
   When your code runs in a SageMaker Training Job, Python's
@@ -54,7 +54,7 @@ class CloudWatchLogger:
                 self._ensure_log_group()
                 logging.info(f"[CloudWatchLogger] Connected → group={config.CLOUDWATCH_LOG_GROUP}")
             except Exception as e:
-                logging.info(f"[CloudWatchLogger] Direct API unavailable: {e} — using stdout only")
+                logging.info(f"[CloudWatchLogger] Direct API unavailable: {e} -- using stdout only")
 
     # ─────────────────────────────────────────────────
     # PUBLIC METHODS (called by MonitoringAgent and AdaptationAgent)

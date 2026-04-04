@@ -4,8 +4,8 @@ config.py
 SINGLE SOURCE OF TRUTH for all project settings.
 
 Two sections:
-  1. ML Hyperparameters  — unchanged from the paper
-  2. AWS Settings        — S3 bucket, SageMaker role, region
+  1. ML Hyperparameters  -- unchanged from the paper
+  2. AWS Settings        -- S3 bucket, SageMaker role, region
 
 HOW ENVIRONMENT DETECTION WORKS:
   When your code runs inside a SageMaker Training Job container,
@@ -26,7 +26,7 @@ import os
 IS_SAGEMAKER = os.path.exists("/opt/ml/input")
 
 # ══════════════════════════════════════════════════════
-# ML HYPERPARAMETERS  (paper values — do not change)
+# ML HYPERPARAMETERS  (paper values -- do not change)
 # ══════════════════════════════════════════════════════
 
 DATA_SPLIT_RATIO = 0.75
