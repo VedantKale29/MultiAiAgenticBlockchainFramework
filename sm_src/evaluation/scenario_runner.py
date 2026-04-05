@@ -1,26 +1,26 @@
 """
 evaluation/scenario_runner.py
 ==============================
-STAGE 5 -- Evaluation Harness
+STAGE 5 — Evaluation Harness
 
 ROLE:
   Runs the three validation scenarios from the roadmap (Section 9.2,
   Stage 5) against the complete agent pipeline and produces the
   evaluation tables required for the thesis:
 
-    1. Flash loan attack     -- known, in RAG corpus
-    2. Reentrancy attack     -- known, in RAG corpus
-    3. Novel variant         -- NOT in RAG corpus (tests generalisation)
+    1. Flash loan attack     — known, in RAG corpus
+    2. Reentrancy attack     — known, in RAG corpus
+    3. Novel variant         — NOT in RAG corpus (tests generalisation)
 
   For each scenario, measures:
-    (a) detection_latency_ms    -- time from event arrival to THREAT trigger
-    (b) response_latency_ms     -- time from THREAT to contract deployment
-    (c) total_latency_ms        -- end-to-end
-    (d) rag_retrieval_score     -- cosine similarity of best RAG hit
-    (e) slither_passed          -- True / False
-    (f) deployed_address        -- contract address (or simulated)
-    (g) llm_used                -- True if LLM was called, False if fallback
-    (h) correct_template        -- did the agent select the expected template?
+    (a) detection_latency_ms    — time from event arrival to THREAT trigger
+    (b) response_latency_ms     — time from THREAT to contract deployment
+    (c) total_latency_ms        — end-to-end
+    (d) rag_retrieval_score     — cosine similarity of best RAG hit
+    (e) slither_passed          — True / False
+    (f) deployed_address        — contract address (or simulated)
+    (g) llm_used                — True if LLM was called, False if fallback
+    (h) correct_template        — did the agent select the expected template?
 
 EDGE NODE SIMULATION (RO5 hybrid requirement):
   The runner supports two modes:
@@ -65,7 +65,7 @@ from typing import Optional
 
 SCENARIOS = {
     "flash_loan": {
-        "description":        "Flash loan attack -- rapid single-block drain via price oracle manipulation",
+        "description":        "Flash loan attack — rapid single-block drain via price oracle manipulation",
         "expected_template":  "circuit_breaker",
         "expected_threat":    "flash_loan",
         "risk_scores":        [0.95, 0.93, 0.91, 0.88, 0.85],  # high-confidence cluster
@@ -74,7 +74,7 @@ SCENARIOS = {
         "in_rag_corpus":      True,
     },
     "reentrancy": {
-        "description":        "Reentrancy attack -- repeated external call exploiting state order",
+        "description":        "Reentrancy attack — repeated external call exploiting state order",
         "expected_template":  "circuit_breaker",
         "expected_threat":    "reentrancy",
         "risk_scores":        [0.82, 0.80, 0.78, 0.76, 0.74],
@@ -83,7 +83,7 @@ SCENARIOS = {
         "in_rag_corpus":      True,
     },
     "novel_variant": {
-        "description":        "Novel variant -- cross-protocol sandwich attack (not in RAG corpus at start)",
+        "description":        "Novel variant — cross-protocol sandwich attack (not in RAG corpus at start)",
         "expected_template":  "rate_limiter",   # closest match by similarity
         "expected_threat":    "unknown",          # RAG may not have exact match
         "risk_scores":        [0.77, 0.75, 0.73, 0.71, 0.70],
@@ -128,15 +128,15 @@ def _make_synthetic_batch(scenario: dict, batch_size: int = 20):
     # Metadata
     tx_hashes     = [f"0x{hashlib.sha256(f'tx{i}'.encode()).hexdigest()[:40]}" for i in range(batch_size)]
     from_addresses = [f"0x{hashlib.sha256(f'wallet{i}'.encode()).hexdigest()[:40]}" for i in range(batch_size)]
-    to_addresses   = ["0xVulnerablePool000000000000000000000000000"] * batch_size
+    # Valid 40-char hex address (Hardhat account #1 — safe target for circuit_breaker)
+    to_addresses   = ["0x70997970C51812dc3A010C7d01b50e0d17dc79C8"] * batch_size
 
-    # tx_meta must be a DICT (not DataFrame) -- decision_agent calls .get() on it
-    tx_meta = {
+    tx_meta = pd.DataFrame({
         "tx_hash":      tx_hashes,
         "from_address": from_addresses,
         "to_address":   to_addresses,
         "timestamp":    [datetime.utcnow().isoformat()] * batch_size,
-    }
+    })
 
     return X_batch, y_batch, tx_meta
 
@@ -370,7 +370,7 @@ class ScenarioRunner:
     def print_report(self, results: list[dict]):
         """Print a formatted evaluation table to stdout."""
         print("\n" + "=" * 90)
-        print(f"EVALUATION REPORT -- node_mode={results[0]['node_mode'] if results else 'N/A'}")
+        print(f"EVALUATION REPORT — node_mode={results[0]['node_mode'] if results else 'N/A'}")
         print("=" * 90)
         header = (
             f"{'Scenario':<20} {'Detect(ms)':>10} {'Response(ms)':>13} "
