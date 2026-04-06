@@ -222,13 +222,22 @@ class GovernanceAgent(BaseAgent):
             try:
                 deployer_addr = self._account.address
                 w3 = self._w3
-                tx = self._governance.functions.propose(
+                propose_fn = self._governance.functions.propose(
                     param, new_value_uint, reason
-                ).build_transaction({
+                )
+                # Estimate gas with a safe floor of 500K
+                # (200K was too low — GovernanceContract string storage costs ~221K)
+                try:
+                    estimated = propose_fn.estimate_gas({"from": deployer_addr})
+                    gas_limit = max(int(estimated * 2), 500_000)
+                except Exception:
+                    gas_limit = 500_000
+                tx = propose_fn.build_transaction({
                     "from":     deployer_addr,
-                    "gas":      200000,
+                    "gas":      gas_limit,
                     "gasPrice": w3.to_wei("1", "gwei"),
                     "nonce":    w3.eth.get_transaction_count(deployer_addr),
+                    "chainId":  31337,
                 })
                 if self.deployer_key:
                     signed = w3.eth.account.sign_transaction(tx, self.deployer_key)

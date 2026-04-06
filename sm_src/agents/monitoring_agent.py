@@ -1,554 +1,216 @@
 """
-agents/monitor_agent.py
-========================
-STAGE 2 — Real-Time Blockchain Monitor Agent
+agents/monitoring_agent.py
+===========================
+AGENT 8 — MonitoringAgent  (base pipeline, batch metrics)
 
-ROLE (Section 3 of Framework — Self-Triggering Mechanism):
-  Continuously watches the Hardhat local chain for suspicious
-  transaction patterns. When an anomaly score crosses the cached
-  threshold, emits THREAT_DETECTED and activates the Decision Agent.
+ROLE:
+  Receives the completed batch payload from ResponseAgent.
+  Computes per-batch classification metrics (Precision, Recall, F1,
+  ROC-AUC, PR-AP, latency) and builds the batch_log dict that
+  CoordinatorAgent appends to batch_history.csv.
 
-HOW IT WORKS (3 steps from the framework doc):
-  Step 1 — Continuous monitoring:
-    Web3.py event filter polls every POLL_INTERVAL_SECONDS (default 1s).
-    Watches the configured VulnerablePool for unusual activity.
+  Optionally logs metrics to CloudWatch and SageMaker Experiments.
 
-  Step 2 — Anomaly scoring:
-    Each incoming event is scored against in-memory thresholds.
-    Checks:
-      - Single-block outflow > OUTFLOW_LIMIT_ETH
-      - Transaction frequency spike (> FREQ_SPIKE_THRESHOLD txs in window)
-      - Price oracle deviation > ORACLE_DEVIATION_PCT
+WHAT IT IS NOT:
+  This is NOT the real-time blockchain monitor.
+  That is MonitorAgent in agents/monitor_agent.py (Stage 2, Gap 6).
+  Different name, different file, different role:
+    MonitoringAgent  → batch CSV metrics  (this file)
+    MonitorAgent     → live Hardhat events (monitor_agent.py)
 
-  Step 3 — Trigger emission:
-    When score >= tau_alert, builds a THREAT_DETECTED payload and
-    calls handle_threat(payload) — your callback that invokes the
-    Decision → Contract → Governance chain.
+INPUT PAYLOAD (from ResponseAgent):
+  decisions       — list of "CLEAR" / "ALERT" / "AUTO-BLOCK"
+  policy_actions  — list of "ALLOW" / "WATCHLIST" / "BLOCK"
+  risk_scores     — np.ndarray of S(z) hybrid scores
+  p_rf            — np.ndarray of RF probabilities
+  s_if            — np.ndarray of IF anomaly scores
+  y_batch         — pd.Series of ground-truth labels (0/1)
+  y_true          — same as y_batch (alias)
+  batch_idx       — int batch number (0-indexed)
+  agent_state     — dict {w, tau_alert, tau_block}
+  start_time      — float perf_counter timestamp from batch start
 
-THRESHOLD CACHE (Section 3, Impossibility 2 solution):
-  - Initialised once from GovernanceContract at startup (1 RPC call)
-  - Synced by ThresholdUpdated events from GovernanceContract
-  - Sub-millisecond lookup — no per-event RPC call
-  - Cache update logged every time it changes
-
-ZERO BREAKING CHANGES:
-  - Does NOT modify any existing agent
-  - If Web3 / Hardhat absent: monitor logs a warning and is a no-op
-  - All errors are caught; never crashes main pipeline
-
-DESIGN (from roadmap doc, Section 9.1 row 4):
-  "Web3.py 1-second filter on Hardhat; WebSocket on Sepolia as secondary"
-
-INSTALL:
-  pip install web3
-  npx hardhat node    ← local chain on http://127.0.0.1:8545
-  # Deploy contracts first (scripts/deploy.js)
-
-ENVIRONMENT VARIABLES (optional):
-  HARDHAT_URL                 — default http://127.0.0.1:8545
-  GOVERNANCE_CONTRACT_ADDRESS — deployed GovernanceContract address
-  VULNERABLE_POOL_ADDRESS     — deployed NaiveReceiverLenderPool address
-  REGISTRY_CONTRACT_ADDRESS   — deployed ContractRegistry address
+OUTPUT PAYLOAD (adds to existing payload):
+  batch_log       — dict with all 19 batch_history.csv columns:
+    batch, w, tau_alert, tau_block,
+    precision, recall, f1, roc_auc, pr_ap, latency_per_tx,
+    tp, fp, fn, tn,
+    n_pred_positive, n_alert, n_auto_block,
+    n_policy_watchlist, n_policy_block
 """
 
-import os
 import time
-import json
-import threading
-import logging
-from datetime import datetime, timezone
-from typing import Optional, Callable
+import numpy as np
 
 from agents.base_agent import BaseAgent, AgentMessage
-
-logger = logging.getLogger(__name__)
-
-# ── Optional Web3 import ───────────────────────────────────────
-try:
-    from web3 import Web3
-    from web3.exceptions import BlockNotFound
-    _WEB3_AVAILABLE = True
-except ImportError:
-    _WEB3_AVAILABLE = False
-
-# ── GovernanceContract minimal ABI (only what we need) ────────
-_GOV_ABI = [
-    {
-        "inputs": [{"internalType": "string", "name": "param", "type": "string"}],
-        "name": "getParameter",
-        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-        "stateMutability": "view",
-        "type": "function",
-    },
-    {
-        "anonymous": False,
-        "inputs": [
-            {"indexed": False, "internalType": "string",  "name": "param",    "type": "string"},
-            {"indexed": False, "internalType": "uint256", "name": "oldValue", "type": "uint256"},
-            {"indexed": False, "internalType": "uint256", "name": "newValue", "type": "uint256"},
-        ],
-        "name": "ParameterUpdated",
-        "type": "event",
-    },
-]
-
-# ── NaiveReceiverLenderPool minimal ABI ───────────────────────
-_POOL_ABI = [
-    {
-        "anonymous": False,
-        "inputs": [
-            {"indexed": True,  "internalType": "address", "name": "borrower",  "type": "address"},
-            {"indexed": False, "internalType": "uint256", "name": "amount",    "type": "uint256"},
-            {"indexed": False, "internalType": "uint256", "name": "fee",       "type": "uint256"},
-        ],
-        "name": "FlashLoan",
-        "type": "event",
-    },
-    {
-        "anonymous": False,
-        "inputs": [
-            {"indexed": True,  "internalType": "address", "name": "from",   "type": "address"},
-            {"indexed": False, "internalType": "uint256", "name": "amount", "type": "uint256"},
-        ],
-        "name": "Deposit",
-        "type": "event",
-    },
-    {
-        "inputs":  [],
-        "name":    "poolBalance",
-        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-        "stateMutability": "view",
-        "type": "function",
-    },
-    {
-        "inputs": [],
-        "name": "maxFlashLoan",
-        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-        "stateMutability": "view",
-        "type": "function",
-    },
-]
+from metrics import (
+    compute_batch_metrics,
+    compute_global_metrics,
+    compute_latency,
+    decisions_to_binary,
+)
 
 
-class ThresholdCache:
+class MonitoringAgent(BaseAgent):
     """
-    In-memory cache of GovernanceContract parameters.
-    Initialised once at startup; updated via ThresholdUpdated events.
-    Sub-millisecond reads — no per-event RPC call.
+    Batch metrics agent — Agent #8 in the base pipeline.
+
+    Accepts optional cw_logger and tracker for AWS integration;
+    both default to None so the agent works fully offline.
     """
 
-    # Defaults match config.py paper values
-    _DEFAULTS = {
-        "tau_alert":    0.487,
-        "tau_block":    0.587,
-        "w":            0.700,
-        "escalation_n": 3.0,
-    }
+    def __init__(self, cw_logger=None, tracker=None):
+        # NOTE: cw_logger and tracker are stored here, NOT passed to
+        # BaseAgent.__init__() — BaseAgent only accepts name=.
+        super().__init__(name="MonitoringAgent")
+        self.cw_logger = cw_logger
+        self.tracker   = tracker
 
-    def __init__(self):
-        self._cache: dict = dict(self._DEFAULTS)
-        self._lock  = threading.Lock()
+    # ── Main logic ────────────────────────────────────────────────
 
-    def get(self, param: str) -> float:
-        with self._lock:
-            return self._cache.get(param, self._DEFAULTS.get(param, 0.0))
+    def _run(self, msg: AgentMessage) -> AgentMessage:
+        payload = msg.payload
 
-    def update(self, param: str, value: float):
-        with self._lock:
-            old = self._cache.get(param)
-            self._cache[param] = value
-            logger.info(
-                f"[ThresholdCache] {param}: {old} → {value}  (on-chain update)"
+        # ── Read pipeline inputs ───────────────────────────────────
+        decisions      = list(payload.get("decisions",      []))
+        policy_actions = list(payload.get("policy_actions", []))
+        risk_scores    = np.asarray(payload.get("risk_scores", []), dtype=float)
+        p_rf           = np.asarray(payload.get("p_rf",   risk_scores), dtype=float)
+        s_if           = np.asarray(payload.get("s_if",   1 - risk_scores), dtype=float)
+
+        # y_true: accept either key name used by different pipeline stages
+        y_batch = payload.get("y_batch", payload.get("y_true", None))
+        if y_batch is None:
+            y_true = np.zeros(len(decisions), dtype=int)
+        else:
+            y_true = np.asarray(y_batch, dtype=int)
+
+        batch_idx   = int(payload.get("batch_idx",  0))
+        agent_state = payload.get("agent_state", {})
+        start_time  = payload.get("start_time",  time.perf_counter())
+
+        w         = float(agent_state.get("w",         0.70))
+        tau_alert = float(agent_state.get("tau_alert", 0.487))
+        tau_block = float(agent_state.get("tau_block", 0.587))
+
+        batch_size = len(decisions)
+
+        # ── Classification metrics ─────────────────────────────────
+        if batch_size > 0 and len(y_true) == batch_size:
+            tp, fp, fn, tn, precision, recall, f1 = compute_batch_metrics(
+                y_true, decisions
             )
+        else:
+            tp = fp = fn = tn = 0
+            precision = recall = f1 = 0.0
 
-    def load_from_contract(self, gov_contract) -> bool:
-        """Read all known params from the deployed GovernanceContract."""
-        try:
-            for param in self._DEFAULTS:
-                raw = gov_contract.functions.getParameter(param).call()
-                self.update(param, raw / 1e18)
-            logger.info("[ThresholdCache] Loaded all params from GovernanceContract")
-            return True
-        except Exception as e:
-            logger.warning(
-                f"[ThresholdCache] Could not load from contract ({e})"
-                " — using defaults"
-            )
-            return False
-
-    def as_dict(self) -> dict:
-        with self._lock:
-            return dict(self._cache)
-
-
-class MonitorAgent(BaseAgent):
-    """
-    Real-time blockchain monitor.
-    Polls Hardhat for events every POLL_INTERVAL_SECONDS.
-    Fires handle_threat() when anomaly score >= tau_alert.
-    """
-
-    POLL_INTERVAL_SECONDS     = 1.0    # Web3.py filter poll interval
-    OUTFLOW_LIMIT_ETH         = 50.0   # single-block outflow threshold (ETH)
-    FREQ_SPIKE_THRESHOLD      = 3      # flash loan events per block = spike
-    ORACLE_DEVIATION_PCT      = 15.0   # price oracle deviation % threshold
-    ANOMALY_SCORE_FLASH_LOAN  = 0.95   # score assigned to detected flash loan
-    ANOMALY_SCORE_FREQ_SPIKE  = 0.75   # score assigned to frequency spike
-    ANOMALY_SCORE_OUTFLOW     = 0.65   # score assigned to high outflow
-
-    def __init__(
-        self,
-        hardhat_url:                str = "http://127.0.0.1:8545",
-        governance_contract_address: Optional[str] = None,
-        pool_contract_address:       Optional[str] = None,
-        handle_threat:               Optional[Callable] = None,
-        **kwargs,
-    ):
-        super().__init__(name="MonitorAgent", **kwargs)
-
-        self.hardhat_url                = os.getenv("HARDHAT_URL", hardhat_url)
-        self.governance_contract_address = (
-            governance_contract_address
-            or os.getenv("GOVERNANCE_CONTRACT_ADDRESS")
-        )
-        self.pool_contract_address = (
-            pool_contract_address
-            or os.getenv("VULNERABLE_POOL_ADDRESS")
-        )
-        self.handle_threat: Optional[Callable] = handle_threat
-
-        # In-memory threshold cache
-        self.threshold_cache = ThresholdCache()
-
-        # Web3 connection
-        self._w3:            Optional[object] = None
-        self._gov_contract:  Optional[object] = None
-        self._pool_contract: Optional[object] = None
-        self._running        = False
-        self._monitor_thread: Optional[threading.Thread] = None
-
-        # State for frequency-spike detection
-        self._block_flash_loan_counts: dict = {}  # block_number → count
-
-        # Detect + response latency tracking
-        self.last_threat_payload: Optional[dict] = None
-
-        self._connect()
-
-    # ── Connection ─────────────────────────────────────────────
-
-    def _connect(self):
-        """Try to connect to Hardhat. Fail silently if unavailable."""
-        if not _WEB3_AVAILABLE:
-            self.logger.warning(
-                "[MonitorAgent] web3 not installed — monitor is a no-op. "
-                "Run: pip install web3"
-            )
-            return
-
-        try:
-            w3 = Web3(Web3.HTTPProvider(self.hardhat_url, request_kwargs={"timeout": 3}))
-            if not w3.is_connected():
-                self.logger.warning(
-                    f"[MonitorAgent] Cannot reach Hardhat at {self.hardhat_url}. "
-                    "Run: npx hardhat node"
-                )
-                return
-
-            self._w3 = w3
-            self.logger.info(
-                f"[MonitorAgent] Connected to Hardhat @ {self.hardhat_url} "
-                f"(chain_id={w3.eth.chain_id})"
-            )
-
-            # Wire GovernanceContract
-            if self.governance_contract_address:
-                self._gov_contract = w3.eth.contract(
-                    address=Web3.to_checksum_address(self.governance_contract_address),
-                    abi=_GOV_ABI,
-                )
-                self.threshold_cache.load_from_contract(self._gov_contract)
-            else:
-                self.logger.info(
-                    "[MonitorAgent] No GovernanceContract address — "
-                    "using default thresholds"
-                )
-
-            # Wire VulnerablePool
-            if self.pool_contract_address:
-                self._pool_contract = w3.eth.contract(
-                    address=Web3.to_checksum_address(self.pool_contract_address),
-                    abi=_POOL_ABI,
-                )
-                self.logger.info(
-                    f"[MonitorAgent] Watching pool @ {self.pool_contract_address}"
-                )
-
-        except Exception as e:
-            self.logger.warning(f"[MonitorAgent] Connection failed ({e})")
-
-    # ── BaseAgent._run() ───────────────────────────────────────
-
-    def _run(self, message: AgentMessage) -> AgentMessage:
-        """
-        Called by CoordinatorAgent once per batch (existing pipeline).
-        In the existing batch mode, the monitor is a pass-through.
-        Real-time monitoring happens in the background thread started
-        by start() / stop().
-        """
-        payload = dict(message.payload)
-        payload["monitor_active"] = self._running
-        payload["threshold_cache"] = self.threshold_cache.as_dict()
-        if self.last_threat_payload:
-            payload["last_threat"] = self.last_threat_payload
-        return AgentMessage(
-            sender=self.name,
-            payload=payload,
-            status="ok",
-        )
-
-    # ── Background monitoring loop ─────────────────────────────
-
-    def start(self):
-        """
-        Start the background monitoring thread.
-        Non-blocking: returns immediately.
-        """
-        if self._w3 is None:
-            self.logger.warning(
-                "[MonitorAgent] No Web3 connection — cannot start monitor."
-            )
-            return
-
-        if self._running:
-            return
-
-        self._running = True
-        self._monitor_thread = threading.Thread(
-            target=self._monitor_loop,
-            daemon=True,
-            name="MonitorAgent-loop",
-        )
-        self._monitor_thread.start()
-        self.logger.info("[MonitorAgent] Background monitoring started")
-
-    def stop(self):
-        """Signal the background loop to stop."""
-        self._running = False
-        if self._monitor_thread:
-            self._monitor_thread.join(timeout=5.0)
-        self.logger.info("[MonitorAgent] Background monitoring stopped")
-
-    def _monitor_loop(self):
-        """
-        Main polling loop.
-        Runs in a daemon thread.
-        """
-        w3 = self._w3
-        last_block = w3.eth.block_number
-        gov_filter = None
-
-        # Create event filter for GovernanceContract ThresholdUpdated
-        if self._gov_contract:
+        # ── ROC-AUC / PR-AP (need both classes present) ───────────
+        roc_auc = None
+        pr_ap   = None
+        if (
+            len(risk_scores) == len(y_true)
+            and len(np.unique(y_true)) > 1
+        ):
             try:
-                gov_filter = self._gov_contract.events.ParameterUpdated.create_filter(
-                    from_block="latest"
-                )
-                self.logger.info("[MonitorAgent] GovernanceContract filter created")
-            except Exception as e:
-                self.logger.warning(f"[MonitorAgent] Gov filter failed ({e})")
+                roc_auc, pr_ap = compute_global_metrics(y_true, risk_scores)
+                if np.isnan(roc_auc):
+                    roc_auc = None
+                if np.isnan(pr_ap):
+                    pr_ap = None
+            except Exception:
+                pass
 
-        # Create event filter for VulnerablePool FlashLoan
-        pool_filter = None
-        if self._pool_contract:
-            try:
-                pool_filter = self._pool_contract.events.FlashLoan.create_filter(
-                    from_block="latest"
-                )
-                self.logger.info("[MonitorAgent] Pool FlashLoan filter created")
-            except Exception as e:
-                self.logger.warning(f"[MonitorAgent] Pool filter failed ({e})")
+        # ── Latency ───────────────────────────────────────────────
+        end_time       = time.perf_counter()
+        latency_per_tx = compute_latency(start_time, end_time, max(batch_size, 1))
 
-        self.logger.info(
-            f"[MonitorAgent] Polling every {self.POLL_INTERVAL_SECONDS}s "
-            f"from block {last_block}"
-        )
+        # ── Decision / policy counts ──────────────────────────────
+        n_pred_positive    = int(np.sum(decisions_to_binary(decisions)))
+        n_alert            = int(decisions.count("ALERT"))
+        n_auto_block       = int(decisions.count("AUTO-BLOCK"))
+        n_policy_watchlist = int(policy_actions.count("WATCHLIST"))
+        n_policy_block     = int(policy_actions.count("BLOCK"))
 
-        while self._running:
-            try:
-                # ── 1. Sync threshold cache from GovernanceContract events ──
-                if gov_filter:
-                    for event in gov_filter.get_new_entries():
-                        param    = event["args"]["param"]
-                        newValue = event["args"]["newValue"] / 1e18
-                        self.threshold_cache.update(param, newValue)
-
-                # ── 2. Scan new blocks for anomalies ──────────────────────
-                current_block = w3.eth.block_number
-                if current_block > last_block:
-                    self._scan_blocks(last_block + 1, current_block)
-                    last_block = current_block
-
-                # ── 3. Process pool FlashLoan events ─────────────────────
-                if pool_filter:
-                    for event in pool_filter.get_new_entries():
-                        self._handle_flash_loan_event(event)
-
-            except Exception as e:
-                self.logger.warning(f"[MonitorAgent] Poll error: {e}")
-
-            time.sleep(self.POLL_INTERVAL_SECONDS)
-
-    def _scan_blocks(self, from_block: int, to_block: int):
-        """
-        Scan a range of newly mined blocks for suspicious patterns.
-        Called on every poll cycle that found new blocks.
-        """
-        w3 = self._w3
-        for block_num in range(from_block, to_block + 1):
-            try:
-                block = w3.eth.get_block(block_num, full_transactions=True)
-            except BlockNotFound:
-                continue
-
-            txs = block.get("transactions", [])
-            if not txs:
-                continue
-
-            # Check total ETH outflow in this block
-            total_outflow_wei = sum(
-                tx.get("value", 0) for tx in txs
-                if tx.get("value", 0) > 0
-            )
-            total_outflow_eth = total_outflow_wei / 1e18
-
-            score = 0.0
-            reasons = []
-
-            if total_outflow_eth > self.OUTFLOW_LIMIT_ETH:
-                score = max(score, self.ANOMALY_SCORE_OUTFLOW)
-                reasons.append(
-                    f"high_outflow:{total_outflow_eth:.2f}ETH > {self.OUTFLOW_LIMIT_ETH}ETH"
-                )
-
-            # Check tx count spike targeting the pool
-            if self._pool_contract:
-                pool_addr = self.pool_contract_address.lower()
-                pool_txs  = [
-                    tx for tx in txs
-                    if tx.get("to", "").lower() == pool_addr
-                ]
-                if len(pool_txs) >= self.FREQ_SPIKE_THRESHOLD:
-                    score = max(score, self.ANOMALY_SCORE_FREQ_SPIKE)
-                    reasons.append(
-                        f"freq_spike:{len(pool_txs)} pool_txs in block {block_num}"
-                    )
-
-            # Emit THREAT_DETECTED if score exceeds tau_alert
-            tau_alert = self.threshold_cache.get("tau_alert")
-            if score >= tau_alert:
-                self._emit_threat(
-                    block_num=block_num,
-                    score=score,
-                    anomaly_type="block_scan",
-                    reasons=reasons,
-                    tx_count=len(txs),
-                    total_outflow_eth=total_outflow_eth,
-                )
-
-    def _handle_flash_loan_event(self, event):
-        """
-        Called when a FlashLoan event is emitted by the VulnerablePool.
-        Flash loan = highest anomaly score, triggers immediately.
-        """
-        args       = event["args"]
-        block_num  = event["blockNumber"]
-        borrower   = args.get("borrower", "0x0")
-        amount_wei = args.get("amount",   0)
-        amount_eth = amount_wei / 1e18
-
-        self.logger.warning(
-            f"[MonitorAgent] FLASH LOAN detected | "
-            f"block={block_num} borrower={borrower[:12]}... "
-            f"amount={amount_eth:.4f}ETH"
-        )
-
-        # Track per-block flash loan counts for frequency scoring
-        count = self._block_flash_loan_counts.get(block_num, 0) + 1
-        self._block_flash_loan_counts[block_num] = count
-
-        score = self.ANOMALY_SCORE_FLASH_LOAN
-        tau_alert = self.threshold_cache.get("tau_alert")
-
-        if score >= tau_alert:
-            self._emit_threat(
-                block_num=block_num,
-                score=score,
-                anomaly_type="flash_loan",
-                reasons=[f"FlashLoan event: borrower={borrower} amount={amount_eth:.4f}ETH"],
-                tx_count=1,
-                total_outflow_eth=amount_eth,
-                tx_hash=event.get("transactionHash", b"").hex()
-                        if hasattr(event.get("transactionHash", b""), "hex") else "",
-                attacker_address=borrower,
-            )
-
-    def _emit_threat(
-        self,
-        block_num:         int,
-        score:             float,
-        anomaly_type:      str,
-        reasons:           list,
-        tx_count:          int,
-        total_outflow_eth: float,
-        tx_hash:           str = "",
-        attacker_address:  str = "",
-    ):
-        """
-        Build the THREAT_DETECTED payload and call handle_threat().
-        Records detection timestamp for latency measurement.
-        """
-        tau_alert = self.threshold_cache.get("tau_alert")
-        tau_block = self.threshold_cache.get("tau_block")
-        w         = self.threshold_cache.get("w")
-
-        payload = {
-            "event_type":       "THREAT_DETECTED",
-            "block_number":     block_num,
-            "anomaly_score":    round(score, 4),
-            "anomaly_type":     anomaly_type,
-            "reasons":          reasons,
-            "tx_hash":          tx_hash,
-            "attacker_address": attacker_address,
-            "tx_count_in_block": tx_count,
-            "total_outflow_eth": round(total_outflow_eth, 4),
-            "threshold_at_trigger": {
-                "tau_alert": tau_alert,
-                "tau_block": tau_block,
-                "w":         w,
-            },
-            "timestamp":        datetime.now(timezone.utc).isoformat(),
-            "detection_time_ns": time.perf_counter_ns(),
+        # ── batch_log — exactly matches batch_history.csv columns ─
+        batch_log = {
+            "batch":             batch_idx + 1,   # 1-indexed for display
+            "w":                 w,
+            "tau_alert":         tau_alert,
+            "tau_block":         tau_block,
+            "precision":         float(precision),
+            "recall":            float(recall),
+            "f1":                float(f1),
+            "roc_auc":           float(roc_auc) if roc_auc is not None else None,
+            "pr_ap":             float(pr_ap)   if pr_ap   is not None else None,
+            "latency_per_tx":    float(latency_per_tx),
+            "tp":                tp,
+            "fp":                fp,
+            "fn":                fn,
+            "tn":                tn,
+            "n_pred_positive":   n_pred_positive,
+            "n_alert":           n_alert,
+            "n_auto_block":      n_auto_block,
+            "n_policy_watchlist": n_policy_watchlist,
+            "n_policy_block":    n_policy_block,
         }
 
-        self.logger.warning(
-            f"[MonitorAgent] >>> THREAT_DETECTED <<< "
-            f"block={block_num} score={score:.3f} type={anomaly_type} "
-            f"tau_alert={tau_alert:.3f}"
+        self.logger.info(
+            f"[{self.name}] Batch {batch_idx + 1}: "
+            f"P={precision:.3f} R={recall:.3f} F1={f1:.3f} "
+            f"TP={tp} FP={fp} FN={fn} "
+            f"alert={n_alert} block={n_auto_block} "
+            f"lat={latency_per_tx*1000:.2f}ms/tx"
         )
 
-        self.last_threat_payload = payload
-
-        if self.handle_threat is not None:
+        # ── Optional AWS integrations ─────────────────────────────
+        if self.cw_logger is not None:
             try:
-                self.handle_threat(payload)
+                self.cw_logger.log_batch(
+                    batch_idx=batch_idx,
+                    metrics=batch_log,
+                )
             except Exception as e:
-                self.logger.error(f"[MonitorAgent] handle_threat callback failed: {e}")
+                self.logger.warning(
+                    f"[{self.name}] CloudWatch log failed: {e}"
+                )
 
-    # ── Utility ────────────────────────────────────────────────
+        if self.tracker is not None:
+            try:
+                self.tracker.log_batch_metrics(
+                    batch=batch_idx + 1,
+                    precision=float(precision),
+                    recall=float(recall),
+                    f1=float(f1),
+                    tau_alert=tau_alert,
+                    w=w,
+                    tp=tp, fp=fp, fn=fn, tn=tn,
+                    roc_auc=float(roc_auc) if roc_auc is not None else None,
+                    pr_ap=float(pr_ap)     if pr_ap   is not None else None,
+                )
+            except Exception as e:
+                self.logger.warning(
+                    f"[{self.name}] Tracker log failed: {e}"
+                )
 
-    def is_connected(self) -> bool:
-        return self._w3 is not None and self._w3.is_connected()
-
-    def get_threshold_snapshot(self) -> dict:
-        return self.threshold_cache.as_dict()
+        # ── Return enriched payload ────────────────────────────────
+        return AgentMessage(
+            sender=self.name,
+            payload={
+                **payload,
+                "batch_log":  batch_log,
+                "tp":         tp,
+                "fp":         fp,
+                "fn":         fn,
+                "tn":         tn,
+                "prec":       precision,
+                "rec":        recall,
+                # p_rf_tp / s_if_tp needed by AdaptationAgent
+                "p_rf_tp":    p_rf[
+                    (y_true == 1) & (decisions_to_binary(decisions) == 1)
+                ] if batch_size > 0 else np.array([]),
+                "s_if_tp":    s_if[
+                    (y_true == 1) & (decisions_to_binary(decisions) == 1)
+                ] if batch_size > 0 else np.array([]),
+            },
+            status="ok",
+        )

@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-04-05T06:18:09.987Z",
+  "network": "localhost",
+  "attacker": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "txHash": "0x5e377dfb329ba54fbb53183ce70530cd3876417a19e6fa9db14b3822b71282d0",
+  "poolAddress": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+  "receiverAddress": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
+  "attackerAddress": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+  "amountEth": 10,
+  "repeat": 3,
+  "elapsedMs": 735,
+  "victimDrainedEth": 0.03,
+  "poolPausedAfter": false,
+  "flashLoanEvents": 3
+}

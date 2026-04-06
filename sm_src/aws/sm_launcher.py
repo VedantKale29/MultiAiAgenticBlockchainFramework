@@ -87,7 +87,7 @@ def launch_job(seed: int = 42, run_mode: str = "AGENTIC", wait: bool = False) ->
         logger.error("sagemaker v2 not available. Run: pip install 'sagemaker>=2.200,<3.0' boto3")
         return ""
 
-    job_name = f"fraud-seedv20{seed}-{run_mode.lower().replace('_', '-')}"
+    job_name = f"fraud-seedv24{seed}-{run_mode.lower().replace('_', '-')}"
     source_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     logger.info(f"Source dir : {source_dir}")
