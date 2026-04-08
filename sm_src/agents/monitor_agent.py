@@ -237,6 +237,15 @@ class MonitorAgent(BaseAgent):
         self._active_futures: Dict[str, Future] = {}
         self._futures_lock = threading.Lock()
 
+        # ── Crash-recovery checkpoint (Approach 2) ────────────────
+        # Saves last processed block number to disk after every poll.
+        # On restart: resumes from checkpoint instead of chain tip,
+        # so no blocks are missed during agent downtime.
+        self._checkpoint_path = os.path.join(
+            os.getenv("MONITOR_CHECKPOINT_DIR", "."),
+            "monitor_checkpoint.json"
+        )
+
         # In-memory threshold cache
         self.threshold_cache = ThresholdCache()
 
@@ -374,13 +383,48 @@ class MonitorAgent(BaseAgent):
             self._executor = None
         self.logger.info("[MonitorAgent] Background monitoring stopped")
 
+    def _load_checkpoint(self, chain_tip: int) -> int:
+        """
+        Load last processed block from checkpoint file.
+        Returns chain_tip if no checkpoint exists (first run).
+        On restart after crash: returns the saved block so no blocks
+        are skipped during agent downtime.
+        """
+        try:
+            if os.path.exists(self._checkpoint_path):
+                data = json.loads(open(self._checkpoint_path).read())
+                saved = int(data.get("last_block", chain_tip))
+                if saved < chain_tip:
+                    self.logger.info(
+                        f"[MonitorAgent] Checkpoint restored: "
+                        f"resuming from block {saved} "
+                        f"(chain tip={chain_tip}, "
+                        f"catching up {chain_tip - saved} blocks)"
+                    )
+                return saved
+        except Exception as e:
+            self.logger.warning(f"[MonitorAgent] Checkpoint load failed ({e}) — starting from tip")
+        return chain_tip
+
+    def _save_checkpoint(self, last_block: int):
+        """Write last processed block to disk. Called after every poll cycle."""
+        try:
+            with open(self._checkpoint_path, "w") as f:
+                json.dump({
+                    "last_block": last_block,
+                    "timestamp":  datetime.now(timezone.utc).isoformat(),
+                }, f)
+        except Exception as e:
+            self.logger.warning(f"[MonitorAgent] Checkpoint save failed ({e})")
+
     def _monitor_loop(self):
         """
         Main polling loop.
         Runs in a daemon thread.
         """
         w3 = self._w3
-        last_block = w3.eth.block_number
+        chain_tip  = w3.eth.block_number
+        last_block = self._load_checkpoint(chain_tip)  # resume from crash if checkpoint exists
         gov_filter = None
 
         # Create event filter for GovernanceContract ThresholdUpdated
@@ -432,6 +476,10 @@ class MonitorAgent(BaseAgent):
             except Exception as e:
                 self.logger.warning(f"[MonitorAgent] Poll error: {e}")
 
+            # ── Save checkpoint after every poll cycle ────────────────
+            # If the process crashes here, next restart resumes from
+            # last_block instead of chain tip — no blocks are missed.
+            self._save_checkpoint(last_block)
             time.sleep(self.POLL_INTERVAL_SECONDS)
 
     def _scan_blocks(self, from_block: int, to_block: int):
