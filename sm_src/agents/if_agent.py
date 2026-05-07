@@ -15,7 +15,7 @@ if agent called by rf agent, receives:
 
 ROLE IN PAPER:
   "Isolation Forest produces an anomaly score reflecting deviation
-   from normal behaviour." Scaled to [0, 1] via MinMaxScaler.
+   from normal behaviour." Scaled to [0, 1] via MinMaxScaler. If score is less than 0.5, transaction is more "normal". If score is greater than 0.5, transaction is more "anomalous".
 
 NO AWS CALLS. Pure inference.
 INPUT  (AgentMessage payload):

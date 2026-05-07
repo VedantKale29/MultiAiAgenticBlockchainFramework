@@ -5,6 +5,7 @@ AGENT 5: ActionAgent -- enforces CLEAR / ALERT / AUTO-BLOCK
 
 ROLE IN PAPER:
   "The action module enforces the decisions made by the cognition layer."
+  Action agent receives the final decisions and risk scores for each transaction in the batch, along with all relevant metadata and agent state information. It then executes the appropriate actions (e.g. clear, alert, auto-block) based on the decisions, and generates a summary report of the actions taken for the batch.
 
 NO AWS CALLS. Pure decision enforcement and summary reporting.
 INPUT  (AgentMessage payload):

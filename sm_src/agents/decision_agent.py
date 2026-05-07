@@ -88,8 +88,8 @@ import config as config
 
 # ── Threat-type heuristics used in rule-based fallback ─────────
 _THREAT_HEURISTICS = {
-    "flash_loan":  lambda s, r: s >= 0.85 and r >= 0.90,
-    "reentrancy":  lambda s, r: 0.70 <= s < 0.85 and r >= 0.85,
+    "flash_loan":  lambda s, r: s >= 0.85 and r >= 0.90,            # where s = risk score, r = RF probability; flash loans tend to have very high risk and RF scores due to their exploitative nature
+    "reentrancy":  lambda s, r: 0.70 <= s < 0.85 and r >= 0.85,     # reentrancy attacks can have slightly lower risk scores than flash loans but still high RF probabilities due to known patterns
     "phishing":    lambda s, r: s >= 0.70 and r < 0.85,
 }
 

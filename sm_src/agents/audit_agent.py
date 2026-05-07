@@ -124,6 +124,7 @@ class AuditAgent(BaseAgent):
     # ═══════════════════════════════════════════════════════════
     # WRITE -- append a record (never overwrites)
     # ═══════════════════════════════════════════════════════════
+    # meaning of "append-only" in this context: we only ever add new records to the end of audit_log.jsonl.
     def _append_record(self, record: dict):
         """Append one JSON record to the append-only audit log."""
         record["prev_hash"]    = self._last_hash
@@ -134,7 +135,8 @@ class AuditAgent(BaseAgent):
             f.write(json.dumps(record, default=str) + "\n")
 
     # ═══════════════════════════════════════════════════════════
-    # BUILD INCIDENT ID
+    # BUILD INCIDENT ID meaningful for tracing (deterministic hash of run_name + batch + timestamp)
+    # We take the first 12 chars of the sha256 hash for brevity, but it's still unique enough for our purposes. This ID can be used to trace specific incidents across the audit log and RAG store.
     # ═══════════════════════════════════════════════════════════
     def _incident_id(self, batch_idx: int, suffix: str = "") -> str:
         ts = datetime.utcnow().strftime("%Y%m%dT%H%M%S")
@@ -268,6 +270,9 @@ class AuditAgent(BaseAgent):
             self.logger.warning(f"[{self.name}] Failed to write batch summary: {e}")
 
         # ── RAG self-improvement: re-index after writing new events ─
+        # that means the new audit records are immediately available for retrieval in future batches -- creating the feedback loop described in the framework doc. If the knowledge agent is unavailable or indexing fails, we log a warning but continue without crashing -- audit still provides value as an immutable log even without RAG.
+        # re indexing after every batch is a simple strategy to ensure the RAG store stays up-to-date with the latest audit records. In a real implementation, you might want to optimize this by only re-indexing new records or doing it asynchronously, but for this example we keep it straightforward.
+        # example of how this creates a feedback loop: if batch 3 has a BLOCK decision that gets logged in the audit, then when we get to batch 5, the RAG retrieval can pull that batch 3 BLOCK event as context for similar transactions, potentially improving the risk assessment for batch 5. This is the essence of the self-improving loop from the framework doc.
         if self.knowledge_agent is not None:
             try:
                 fraud_events_path = os.path.join(self.run_dir, "fraud_events.csv")

@@ -32,4 +32,6 @@ slither-analyzer
 npm install --save-dev hardhat
 npx hardhat node   # runs on http://127.0.0.1:8545
 
+mesa
+
 # -e .
