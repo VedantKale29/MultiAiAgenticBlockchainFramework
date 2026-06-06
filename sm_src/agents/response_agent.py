@@ -8,13 +8,18 @@ ROLE:
     ALLOW / WATCHLIST / BLOCK
 
 WHAT IT DOES:
-  - writes fraud_events.csv
-  - writes attack_log.json
-  - passes data onward to MonitoringAgent
+  - writes fraud_events.csv  Which contains a log of all transactions that were flagged as fraudulent (either ALERT or AUTO-BLOCK) along with their details and model scores.
+  Details include: tx hash, from/to addresses, timestamp, decision, policy action, risk score, p_rf, s_if, true label, agent state (w, tau_alert, tau_block), etc.
+  
+  - writes attack_log.json which is a cumulative log of all detected fraud events across batches, stored in JSON format for easy querying and analysis.
+    Each entry in attack_log.json corresponds to a single transaction that was flagged as fraudulent, with the same details as in fraud_events.csv.
+    attack_log.json is append-only and serves as a comprehensive record of all suspicious transactions detected by the system over time.
+ 
+   - passes data onward to MonitoringAgent
   attack.json is a cumulative log of all detected fraud events across batches.
-    fraud_events.csv is a tabular log of all detected fraud events, with one row per event.
-    whatchatched.json is a cumulative log of all transactions that were flagged for watchlisting (but not blocked).
-    blocklist.json is a cumulative log of all transactions that were blocked.
+   - fraud_events.csv is a tabular log of all detected fraud events, with one row per event.
+   - watchlist.json is a cumulative log of all transactions that were flagged for watchlisting (but not blocked).
+   - blocklist.json is a cumulative log of all transactions that were blocked.
 
 NO HUMAN INTERVENTION.
 """

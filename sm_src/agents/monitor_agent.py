@@ -3,6 +3,10 @@ agents/monitor_agent.py
 ==========================
 STAGE 2 — Real-Time Blockchain Monitor Agent
 
+These will run as background threads, continuously watching the Hardhat local chain for
+After stage 1's static batch analysis, stage 2 adds a real-time MonitorAgent that polls for new blocks and events every second. It scores each block for anomalies based on configurable
+thresholds (e.g. high outflow, transaction frequency spikes, flash loan events) and emits a THREAT_DETECTED signal when the anomaly score exceeds tau_alert. This triggers the Decision Agent to evaluate the threat and decide on a response.
+
 ROLE (Section 3 of Framework — Self-Triggering Mechanism):
   Continuously watches the Hardhat local chain for suspicious
   transaction patterns. When an anomaly score crosses the cached
@@ -16,9 +20,10 @@ HOW IT WORKS (3 steps from the framework doc):
   Step 2 — Anomaly scoring:
     Each incoming event is scored against in-memory thresholds.
     Checks:
-      - Single-block outflow > OUTFLOW_LIMIT_ETH
+      - Single-block outflow > OUTFLOW_LIMIT_ETH    # high outflow from the pool in a single block; OUTFLOW_LIMIT_ETH is configurable (default 50 ETH)
       - Transaction frequency spike (> FREQ_SPIKE_THRESHOLD txs in window)
-      - Price oracle deviation > ORACLE_DEVIATION_PCT
+      - Price oracle deviation > ORACLE_DEVIATION_PCT  # (if price oracle events are implemented in the future)
+      - FlashLoan event from the pool (highest score, triggers immediately)
 
   Step 3 — Trigger emission:
     When score >= tau_alert, builds a THREAT_DETECTED payload and

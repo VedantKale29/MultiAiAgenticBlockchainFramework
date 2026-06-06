@@ -68,7 +68,10 @@ class FusionAgent(BaseAgent):
         # Paper formula: S(z) = w * p_RF(z) + (1 - w) * s_IF(z)
         risk_scores = np.clip((w * p_rf) + ((1.0 - w) * s_if), 0.0, 1.0)
 
-        # Dual-threshold decisions
+        # Dual-threshold decisions 
+        # Here we apply the thresholds to determine the final decision for each transaction based on its risk score:
+        # How it is diffrent from Action agent: The Fusion agent computes the risk scores and decisions based on the fusion of RF and IF, while the Action agent takes these decisions and executes actions accordingly. 
+        # The Fusion agent is focused on the computation and decision logic, while the Action agent is focused on enforcing those decisions and reporting. i.e. decison is computed here, but not enforced (no AWS calls, etc.) and summary report is generated in Action agent.
         decisions = np.full(risk_scores.shape, "CLEAR", dtype=object)
         decisions[(risk_scores >= tau_alert) & (risk_scores < tau_block)] = "ALERT"
         decisions[risk_scores >= tau_block] = "AUTO-BLOCK"
@@ -80,6 +83,10 @@ class FusionAgent(BaseAgent):
         # self.logger.info(
         #     f"[{self.name}] Decisions  ->> CLEAR={n_clear} ALERT={n_alert} AUTO-BLOCK={n_block}"
         # )
+
+        # Fusion agent does not send S(z) score to action agent, but rather sends the final decisions along with the risk scores 
+        # and all relevant metadata for transparency and debugging. The Action agent can then use this information to enforce the decisions 
+        # and generate a summary report of actions taken for the batch.
 
         return AgentMessage(
             sender=self.name,

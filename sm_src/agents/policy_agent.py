@@ -25,6 +25,9 @@ RULES:
   if wallet is in watchlist and gets a new alert, update the watchlist entry with new alert count, recent tx hash, last seen timestamp, and max risk score
   If a wallet exists in watchlist and the new alert causes the alert count to exceed the threshold, move the wallet to blocked with reason "repeat_alert_escalation"
   here threshold = config.POLICY_ALERT_ESCALATION_THRESHOLD
+  If a wallet has 2 alert and then recive clear, the alert count should not reset, because we want to capture the repeat alerts over time even if they are interspersed with clears.
+    The wallet would get blocked if it reaches 3 alerts within any time frame, regardless of clears in between. This way we can catch wallets that have a pattern of repeated suspicious behavior 
+    even if they occasionally have normal transactions.
 """
 
 import os

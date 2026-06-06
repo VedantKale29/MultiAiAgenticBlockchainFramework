@@ -1,7 +1,7 @@
 """
 agents/decision_agent.py
 =========================
-STAGE 3 -- DecisionAgent  (UPGRADED: tri-backend LLM support)
+STAGE 3a -- DecisionAgent  (UPGRADED: tri-backend LLM support)
 
 ROLE IN FRAMEWORK (Section 4, Layer 3):
   Receives the trigger payload from FusionAgent / MonitoringAgent.

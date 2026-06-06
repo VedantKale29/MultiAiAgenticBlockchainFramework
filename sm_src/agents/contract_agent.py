@@ -1,12 +1,13 @@
 """
 agents/contract_agent.py
 =========================
-STAGE 3 — ContractAgent
+STAGE 3b — ContractAgent
 
 ROLE IN FRAMEWORK (Section 4.1 — revised):
+ActionPlan template:-  
   Receives ActionPlan from DecisionAgent.
   Selects the best-matching pre-audited Solidity template from the
-  RAG contract_templates collection.
+  RAG contract_templates collection. by usng cosine similarity on the ActionPlan's threat_type and severity.
   Injects ActionPlan parameters into the template's placeholder slots.
   Runs Slither static analysis on the parameterised contract.
   Deploys via Web3.py to the local Hardhat chain.

@@ -11,6 +11,9 @@ WHAT IT DOES:
   2. Feeds the incident report BACK into the RAG knowledge base
      (FraudKnowledgeAgent) -- this is the self-improving loop from
      the framework doc Section 4.2.
+     as Example: if batch 3 has a BLOCK decision that gets logged in the audit, 
+     then when we get to batch 5, the RAG retrieval can pull that batch 3 BLOCK event as context for similar transactions, 
+     potentially improving the risk assessment for batch 5. This is the essence of the self-improving loop from the framework doc.
 
   3. Optionally uploads the audit log to S3 alongside other run
      artifacts (uses existing S3Manager -- no new AWS setup).

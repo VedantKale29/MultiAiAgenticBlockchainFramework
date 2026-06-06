@@ -84,6 +84,24 @@ class PerceptionAgent(BaseAgent):
         if raw_meta is None:
             raw_meta = pd.DataFrame(index=X_batch.index)
 
+
+        """
+            We construct a tx_meta DataFrame that contains relevant metadata for each transaction in the batch. This includes:
+            - "tx_hash": the transaction hash (if available in raw_meta, otherwise we generate a
+            placeholder hash based on batch and index)
+            - "from_address": the sender's address (if available, otherwise a placeholder)
+            - "to_address": the recipient's address (if available, otherwise a placeholder)
+            - "timestamp": the transaction timestamp (if available, otherwise a placeholder)
+            This metadata can be used in later stages for decision-making, reporting, or debugging.
+            Example of generated tx_meta if raw_meta is missing:
+            tx_meta = {
+                "tx_hash": ["tx_1_0", "tx_1_1", ...],
+                "from_address": ["wallet_from_0", "wallet_from_1", ...],
+                "to_address": ["wallet_to_0", "wallet_to_1", ...],
+                "timestamp": ["batch_1", "batch_1", ...],
+            }
+        """
+
         tx_meta = {
             "tx_hash": raw_meta["tx_hash"].astype(str).tolist()
                 if "tx_hash" in raw_meta.columns

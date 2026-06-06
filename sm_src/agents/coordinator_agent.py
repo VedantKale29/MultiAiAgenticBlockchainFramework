@@ -14,9 +14,9 @@ UPDATED PIPELINE ORDER:
   PerceptionAgent  → validates state vector z + passes tx_meta
   RFAgent          → p_RF(z)
   IFAgent          → s_IF(z)
-  FusionAgent      → S(z) = w*p_RF + (1-w)*s_IF → decisions
-  ActionAgent      → CLEAR / ALERT / AUTO-BLOCK
-  PolicyAgent      → ALLOW / WATCHLIST / BLOCK
+  FusionAgent      → S(z) = w*p_RF + (1-w)*s_IF → decisions and CLEAR / ALERT / AUTO-BLOCK Computation
+  ActionAgent      → Action Report writing only
+  PolicyAgent      → CLEAR / ALERT / AUTO-BLOCK -> ALLOW / WATCHLIST / BLOCK
   ResponseAgent    → writes fraud_events.csv / attack_log.json
   MonitoringAgent  → metrics + CloudWatch + SM Experiments
   AdaptationAgent  → update tau, w + CloudWatch event log
@@ -44,6 +44,8 @@ PIPELINE ORDER:
   PolicyAgent       → ALLOW / WATCHLIST / BLOCK
   ResponseAgent     → fraud_events.csv / attack_log.json
   MonitoringAgent   → metrics + CloudWatch + SM Experiments
+  ─── Stage 1 ───
+  FraudKnowledgeAgent → RAG knowledge base 
   ─── Stage 2 ───
   AuditAgent        → audit_log.jsonl + RAG re-index
   ─── Stage 3 ───
@@ -55,7 +57,7 @@ PIPELINE ORDER:
   AdaptationAgent   → update tau, w
  
 SAFETY CONTRACT:
-  Every Stage 2–4 agent is wrapped in _run_optional().
+  Every Stage 2-4 agent is wrapped in _run_optional().
   Any crash → warning logged → original message returned.
   AWS / S3 / SageMaker / CloudWatch untouched.
   New agents only instantiated if their module files exist.
